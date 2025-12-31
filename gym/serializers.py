@@ -21,6 +21,8 @@ class MemberSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class AttendanceRecordSerializer(serializers.ModelSerializer):
+    member_details = MemberSerializer(source='member', read_only=True)
+    
     class Meta:
         model = AttendanceRecord
         fields = '__all__'
@@ -46,6 +48,7 @@ class WorkoutDaySerializer(serializers.ModelSerializer):
 
 class ProgramSerializer(serializers.ModelSerializer):
     workout_days = WorkoutDaySerializer(many=True, read_only=True)
+    created_by_details = TrainerSerializer(source='created_by', read_only=True)
     
     class Meta:
         model = Program
@@ -65,6 +68,8 @@ class MemberSubscriptionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class PaymentSerializer(serializers.ModelSerializer):
+    subscription_details = MemberSubscriptionSerializer(source='subscription', read_only=True)
+    
     class Meta:
         model = Payment
         fields = '__all__'
@@ -75,6 +80,9 @@ class ProgressEntrySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class MessageSerializer(serializers.ModelSerializer):
+    recipient_details = MemberSerializer(source='recipient', read_only=True)
+    sender_details = UserSerializer(source='created_by', read_only=True)
+    
     class Meta:
         model = Message
         fields = '__all__'

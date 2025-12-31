@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
-from users.views import UserViewSet
+from users.views import UserViewSet, LoginView, RegisterView, AdminLoginView
 from gym.views import (
     TrainerViewSet, MemberViewSet, AttendanceRecordViewSet, 
     ProgramViewSet, WorkoutDayViewSet, ExerciseViewSet, 
@@ -31,6 +31,9 @@ router.register(r'messages', MessageViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/login/', LoginView.as_view(), name='login'),
+    path('api/register/', RegisterView.as_view(), name='register'),
+    path('api/admin-login/', AdminLoginView.as_view(), name='admin-login'),
     path('api/', include(router.urls)),
     
     # Swagger Documentation
