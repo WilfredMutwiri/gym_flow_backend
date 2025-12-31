@@ -29,7 +29,10 @@ DEBUG = False
 
 ALLOWED_HOSTS = [
     ".railway.app",
-]
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+]   
 
 
 # Application definition

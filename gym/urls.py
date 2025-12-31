@@ -1,0 +1,36 @@
+from django.urls import path
+from .views import (
+    TrainerListView, TrainerDetailView,
+    MemberListView, MemberDetailView,
+    ProgramListView, ProgramDetailView,
+    AttendanceListView, WorkoutDayListView,
+    WorkoutSetListView, SubscriptionPlanListView,
+    MemberSubscriptionListView, PaymentListView,
+    ProgressEntryListView, ExerciseListView,
+    MessageListView
+)
+
+urlpatterns = [
+    # Trainers
+    path('trainers/', TrainerListView.as_view(), name='trainer-list'),
+    path('trainers/<uuid:pk>/', TrainerDetailView.as_view(), name='trainer-detail'),
+    
+    # Members
+    path('members/', MemberListView.as_view(), name='member-list'),
+    path('members/<uuid:pk>/', MemberDetailView.as_view(), name='member-detail'),
+    
+    # Programs
+    path('programs/', ProgramListView.as_view(), name='program-list'),
+    path('programs/<uuid:pk>/', ProgramDetailView.as_view(), name='program-detail'),
+    
+    # Other Entities
+    path('attendance/', AttendanceListView.as_view(), name='attendance-list'),
+    path('workout-days/', WorkoutDayListView.as_view(), name='workout-day-list'),
+    path('workout-sets/', WorkoutSetListView.as_view(), name='workout-set-list'),
+    path('plans/', SubscriptionPlanListView.as_view(), name='plan-list'),
+    path('subscriptions/', MemberSubscriptionListView.as_view(), name='subscription-list'),
+    path('payments/', PaymentListView.as_view(), name='payment-list'),
+    path('progress/', ProgressEntryListView.as_view(), name='progress-list'),
+    path('exercises/', ExerciseListView.as_view(), name='exercise-list'),
+    path('messages/', MessageListView.as_view(), name='message-list'),
+]

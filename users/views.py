@@ -3,6 +3,14 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import get_user_model, authenticate
 from .serializers import UserSerializer
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView,APIView
+from drf_yasg.utils import swagger_auto_schema
+from shared.responses import (
+    handle_success,
+    handle_error,
+    handle_validation_error,
+    handle_not_found,
+)
 
 User = get_user_model()
 
@@ -11,11 +19,21 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from gym.permissions import IsAdminOrTrainer
 from rest_framework import generics
 
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
-
+class UserViewSet(APIView):
+    @swagger_auto_schema(
+        tags=['Users'],
+        operation_summary='Get all users',
+        responses={
+            200: 'Users retrieved successfully',
+            401: 'Unauthorized',
+            403: 'Forbidden',
+        }
+    )  
+    def get(self, request):
+        queryset = self.get_queryset()
+        serializer = UserSerializer(queryset, many=True)
+        return handle_success(data=serializer.data, message="Users retrieved successfully", status_code=status.HTTP_200_OK)
+    
     def get_queryset(self):
         user = self.request.user
         if user.role == 'admin':
@@ -24,10 +42,38 @@ class UserViewSet(viewsets.ModelViewSet):
             return User.objects.filter(role__in=['member', 'trainer']) 
         return User.objects.filter(id=user.id) 
 
-class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
+class RegisterView(APIView):
+    
     permission_classes = [AllowAny]
-    serializer_class = RegisterSerializer
+
+    @swagger_auto_schema(
+        tags=['Users'],
+        operation_summary='Register a new user',
+        request_body=RegisterSerializer,
+        responses={
+            201: 'User registered successfully',
+            400: 'Bad request',
+        }
+    )
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            token, _ = Token.objects.get_or_create(user=user)
+            return  handle_success(
+                data={
+                    'token': token.key,
+                    'user': UserSerializer(user).data
+                },
+                message='User registered successfully',
+                status_code=status.HTTP_201_CREATED
+            )
+        return handle_error(
+            errors=serializer.errors,
+            message='User registration failed',
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+ 
 
 class LoginView(views.APIView):
     permission_classes = [AllowAny]
@@ -37,15 +83,24 @@ class LoginView(views.APIView):
         password = request.data.get('password')
         
         if not email or not password:
-            return Response({'error': 'Please provide both email and password'}, status=status.HTTP_400_BAD_REQUEST)
+            return handle_error(
+                message='Please provide both email and password',
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
         
         user = authenticate(email=email, password=password)
         
         if not user:
-            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+            return handle_error(
+                message='Invalid credentials',
+                status_code=status.HTTP_401_UNAUTHORIZED
+            )
 
         if user.role == 'admin':
-             return Response({'error': 'Admins must use the admin login portal.'}, status=status.HTTP_403_FORBIDDEN)
+             return handle_error(
+                message='Admins must use the admin login portal.',
+                status_code=status.HTTP_403_FORBIDDEN
+            )
             
         token, _ = Token.objects.get_or_create(user=user)
         
@@ -59,7 +114,11 @@ class LoginView(views.APIView):
         if hasattr(user, 'trainer_profile'):
             response_data['trainer_id'] = user.trainer_profile.id
 
-        return Response(response_data)
+        return  handle_success(
+            data=response_data,
+            message='Login successful',
+            status_code=status.HTTP_200_OK
+        )
 
 class AdminLoginView(views.APIView):
     permission_classes = [AllowAny]
@@ -69,7 +128,10 @@ class AdminLoginView(views.APIView):
         password = request.data.get('password')
         
         if not email or not password:
-            return Response({'error': 'Please provide both email and password'}, status=status.HTTP_400_BAD_REQUEST)
+            return  handle_error(
+                message='Please provide both email and password',
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
         
         user = authenticate(email=email, password=password)
         
@@ -78,11 +140,18 @@ class AdminLoginView(views.APIView):
             # If user exists but is not admin, authenticate returns the user object.
             # But here `authenticate` will return user if password matches.
             # We check role.
-            return Response({'error': 'Invalid credentials or unauthorized access.'}, status=status.HTTP_401_UNAUTHORIZED)
+            return handle_error(
+                message='Invalid credentials or unauthorized access.',
+                status_code=status.HTTP_401_UNAUTHORIZED
+            )
             
         token, _ = Token.objects.get_or_create(user=user)
         
-        return Response({
-            'token': token.key,
-            'user': UserSerializer(user).data
-        })
+        return  handle_success(
+            data={
+                'token': token.key,
+                'user': UserSerializer(user).data
+            },
+            message='Login successful',
+            status_code=status.HTTP_200_OK
+        )

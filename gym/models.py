@@ -1,20 +1,19 @@
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from shared.basemodel import BaseModel
 
-class Trainer(models.Model):
+class Trainer(BaseModel):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='trainer_profile')
     specializations = models.JSONField(default=list)  # List of strings
     bio = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, default='active')
     hire_date = models.DateField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"Trainer: {self.user.email}"
 
-class Member(models.Model):
+class Member(BaseModel):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='member_profile')
     date_of_birth = models.DateField()
     gender = models.CharField(max_length=10)
@@ -24,20 +23,18 @@ class Member(models.Model):
     join_date = models.DateField()
     assigned_trainer = models.ForeignKey(Trainer, on_delete=models.SET_NULL, null=True, blank=True, related_name='members')
     notes = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"Member: {self.user.email}"
 
-class AttendanceRecord(models.Model):
+class AttendanceRecord(BaseModel):
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='attendance')
     check_in_time = models.DateTimeField()
     check_out_time = models.DateTimeField(null=True, blank=True)
     date = models.DateField()
     method = models.CharField(max_length=20)  # manual, qr, id
 
-class Program(models.Model):
+class Program(BaseModel):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     duration = models.CharField(max_length=100)
@@ -47,18 +44,16 @@ class Program(models.Model):
     assigned_members = models.ManyToManyField(Member, related_name='assigned_programs', blank=True)
     status = models.CharField(max_length=20, default='active')
     version = models.IntegerField(default=1)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
 
-class WorkoutDay(models.Model):
+class WorkoutDay(BaseModel):
     program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='workout_days')
     day_number = models.IntegerField()
     name = models.CharField(max_length=100)
 
-class Exercise(models.Model):
+class Exercise(BaseModel):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     muscle_group = models.CharField(max_length=100)
@@ -68,7 +63,7 @@ class Exercise(models.Model):
     def __str__(self):
         return self.name
 
-class WorkoutSet(models.Model):
+class WorkoutSet(BaseModel):
     workout_day = models.ForeignKey(WorkoutDay, on_delete=models.CASCADE, related_name='exercises')
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
     sets = models.IntegerField()
@@ -77,7 +72,7 @@ class WorkoutSet(models.Model):
     notes = models.TextField(blank=True, null=True)
     safety_notes = models.TextField(blank=True, null=True)
 
-class SubscriptionPlan(models.Model):
+class SubscriptionPlan(BaseModel):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     duration = models.IntegerField()  # in days
@@ -88,7 +83,7 @@ class SubscriptionPlan(models.Model):
     def __str__(self):
         return self.name
 
-class MemberSubscription(models.Model):
+class MemberSubscription(BaseModel):
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='subscriptions')
     plan = models.ForeignKey(SubscriptionPlan, on_delete=models.SET_NULL, null=True)
     start_date = models.DateField()
@@ -97,7 +92,7 @@ class MemberSubscription(models.Model):
     payment_status = models.CharField(max_length=20) # paid, pending, overdue
     amount = models.DecimalField(max_digits=10, decimal_places=2)
 
-class Payment(models.Model):
+class Payment(BaseModel):
     subscription = models.ForeignKey(MemberSubscription, on_delete=models.CASCADE, related_name='payments')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     method = models.CharField(max_length=50)  # cash, card, etc
@@ -105,7 +100,7 @@ class Payment(models.Model):
     transaction_date = models.DateTimeField()
     notes = models.TextField(blank=True, null=True)
 
-class ProgressEntry(models.Model):
+class ProgressEntry(BaseModel):
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='progress_entries')
     date = models.DateField()
     weight = models.FloatField(null=True, blank=True)
@@ -115,7 +110,7 @@ class ProgressEntry(models.Model):
     notes = models.TextField(blank=True, null=True)
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
 
-class Message(models.Model):
+class Message(BaseModel):
     recipient = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='messages')
     type = models.CharField(max_length=50)
     subject = models.CharField(max_length=200)
