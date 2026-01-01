@@ -7,7 +7,8 @@ from .views import (
     WorkoutSetListView, SubscriptionPlanListView,
     MemberSubscriptionListView, PaymentListView,
     ProgressEntryListView, ExerciseListView,
-    MessageListView, DashboardStatsView, ReportsStatsView, MemberDashboardStatsView, GymSettingView
+    MessageListView, DashboardStatsView, ReportsStatsView, MemberDashboardStatsView, GymSettingView,
+    MemberProfileUpdateView
 )
 from .chat_views import ConversationListView, ConversationDetailView, MemberListForChatView
 
@@ -18,6 +19,8 @@ urlpatterns = [
     path('stats/dashboard/', DashboardStatsView.as_view(), name='dashboard-stats'),
     path('stats/reports/', ReportsStatsView.as_view(), name='reports-stats'),
     path('stats/member-dashboard/', MemberDashboardStatsView.as_view(), name='member-dashboard-stats'),
+    # Member Profile
+    path('profile/', MemberProfileUpdateView.as_view(), name='member-profile'),
     # Chat
     path('chat/conversations/', ConversationListView.as_view(), name='conversation-list'),
     path('chat/conversations/<int:conversation_id>/', ConversationDetailView.as_view(), name='conversation-detail'),

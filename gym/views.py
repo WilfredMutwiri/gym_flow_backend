@@ -21,6 +21,10 @@ from shared.responses import (
     handle_validation_error,
     handle_not_found,
 )
+from django.utils import timezone
+from django.db.models import Sum, Count
+from datetime import timedelta
+
 
 class TrainerListView(views.APIView):
     permission_classes = [IsAdminUser]
@@ -246,9 +250,6 @@ class ProgramDetailView(views.APIView):
         program.delete()
         return handle_success(message="Program deleted successfully", status_code=status.HTTP_200_OK)
 
-from django.utils import timezone
-from django.db.models import Sum, Count
-from datetime import timedelta
 
 class DashboardStatsView(views.APIView):
     permission_classes = [IsAdminUser]
@@ -697,3 +698,54 @@ class MessageListView(views.APIView):
             messages = Message.objects.all()
         serializer = MessageSerializer(messages, many=True)
         return handle_success(data=serializer.data, message="Messages retrieved successfully", status_code=status.HTTP_200_OK)
+
+class MemberProfileUpdateView(views.APIView):
+    permission_classes = [IsMember]
+
+    @swagger_auto_schema(
+        tags=['Members'],
+        operation_summary='Get current member profile',
+        responses={200: MemberSerializer()}
+    )
+    def get(self, request):
+        """Get the logged-in member's profile"""
+        try:
+            member = Member.objects.get(user=request.user)
+            serializer = MemberSerializer(member)
+            return handle_success(data=serializer.data, message="Profile retrieved successfully", status_code=status.HTTP_200_OK)
+        except Member.DoesNotExist:
+            return handle_not_found(message="Member profile not found")
+
+    @swagger_auto_schema(
+        tags=['Members'],
+        operation_summary='Update current member profile',
+        request_body=MemberSerializer
+    )
+    def patch(self, request):
+        """Update the logged-in member's profile"""
+        try:
+            member = Member.objects.get(user=request.user)
+            user = request.user
+            
+            # Update user fields
+            user_fields = ['first_name', 'last_name', 'phone']
+            for field in user_fields:
+                if field in request.data:
+                    setattr(user, field, request.data[field])
+            user.save()
+            
+            # Update member-specific fields
+            if 'notes' in request.data:
+                member.notes = request.data['notes']
+            if 'address' in request.data:
+                member.address = request.data['address']
+            if 'emergency_contact' in request.data:
+                member.emergency_contact = request.data['emergency_contact']
+            member.save()
+            
+            serializer = MemberSerializer(member)
+            return handle_success(data=serializer.data, message="Profile updated successfully", status_code=status.HTTP_200_OK)
+        except Member.DoesNotExist:
+            return handle_not_found(message="Member profile not found")
+        except Exception as e:
+            return handle_error(message=f"Failed to update profile: {str(e)}")
