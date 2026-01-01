@@ -105,7 +105,7 @@ class SessionSerializer(serializers.ModelSerializer):
         model = Session
         fields = ['id', 'trainer', 'member', 'trainer_name', 'member_name', 
                  'start_time', 'end_time', 'status', 'notes', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at', 'member']
+        read_only_fields = ['created_at', 'updated_at']
 
 class GymSettingSerializer(serializers.ModelSerializer):
     class Meta:
