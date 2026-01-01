@@ -7,10 +7,13 @@ from .views import (
     WorkoutSetListView, SubscriptionPlanListView,
     MemberSubscriptionListView, PaymentListView,
     ProgressEntryListView, ExerciseListView,
-    MessageListView
+    ProgressEntryListView, ExerciseListView,
+    MessageListView, DashboardStatsView
 )
 
 urlpatterns = [
+    # Dashboard Stats
+    path('stats/dashboard/', DashboardStatsView.as_view(), name='dashboard-stats'),
     # Trainers
     path('trainers/', TrainerListView.as_view(), name='trainer-list'),
     path('trainers/<int:pk>/', TrainerDetailView.as_view(), name='trainer-detail'),

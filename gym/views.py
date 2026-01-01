@@ -211,7 +211,112 @@ class ProgramDetailView(views.APIView):
         program.delete()
         return handle_success(message="Program deleted successfully", status_code=status.HTTP_200_OK)
 
-# I will continue with the rest of the views similarly if needed, but these cover the major entities.
+from django.utils import timezone
+from django.db.models import Sum, Count
+from datetime import timedelta
+
+class DashboardStatsView(views.APIView):
+    permission_classes = [IsAdminUser]
+
+    @swagger_auto_schema(
+        tags=['Stats'],
+        operation_summary='Get dashboard statistics'
+    )
+    def get(self, request):
+        try:
+            today = timezone.now().date()
+            start_of_month = today.replace(day=1)
+            
+            # 1. Overview Stats
+            total_members = Member.objects.count()
+            active_members = Member.objects.filter(status='active').count()
+            today_attendance = AttendanceRecord.objects.filter(date=today).count()
+            
+            monthly_revenue = Payment.objects.filter(
+                status='completed',
+                transaction_date__gte=start_of_month
+            ).aggregate(total=Sum('amount'))['total'] or 0
+            
+            active_programs = Program.objects.filter(status='active').count()
+            
+            # 2. Alerts
+            expiring_soon = MemberSubscription.objects.filter(
+                status='active',
+                end_date__range=[today, today + timedelta(days=7)]
+            )
+            
+            dropout_alerts = Member.objects.filter(
+                status='active'
+            ).exclude(
+                attendance__date__gte=today - timedelta(days=7)
+            ).count()
+            
+            new_members_this_month = Member.objects.filter(
+                join_date__gte=start_of_month
+            ).count()
+
+            # 3. Trends (Attendance - last 7 days)
+            attendance_trends = []
+            for i in range(6, -1, -1):
+                d = today - timedelta(days=i)
+                count = AttendanceRecord.objects.filter(date=d).count()
+                attendance_trends.append({
+                    'date': d.strftime('%a'),
+                    'count': count
+                })
+
+            # 4. Trends (Revenue - last 6 months)
+            revenue_trends = []
+            for i in range(5, -1, -1):
+                # Simple month calculation
+                month_date = (start_of_month - timedelta(days=i*30)).replace(day=1)
+                next_month = (month_date + timedelta(days=32)).replace(day=1)
+                
+                rev = Payment.objects.filter(
+                    status='completed',
+                    transaction_date__range=[month_date, next_month]
+                ).aggregate(total=Sum('amount'))['total'] or 0
+                
+                revenue_trends.append({
+                    'month': month_date.strftime('%b'),
+                    'revenue': float(rev)
+                })
+
+            # 5. Serialization for Expiring Subscriptions
+            expiring_data = []
+            for sub in expiring_soon:
+                expiring_data.append({
+                    'id': sub.id,
+                    'memberName': f"{sub.member.user.first_name} {sub.member.user.last_name}",
+                    'planName': sub.plan.name if sub.plan else "N/A",
+                    'endDate': sub.end_date,
+                    'amount': float(sub.amount),
+                    'status': sub.status
+                })
+
+            data = {
+                'overview': {
+                    'totalMembers': total_members,
+                    'activeMembers': active_members,
+                    'todayAttendance': today_attendance,
+                    'monthlyRevenue': float(monthly_revenue),
+                    'activePrograms': active_programs,
+                },
+                'alerts': {
+                    'expiringSubscriptions': len(expiring_data),
+                    'dropoutAlerts': dropout_alerts,
+                    'newMembersThisMonth': new_members_this_month,
+                },
+                'trends': {
+                    'attendance': attendance_trends,
+                    'revenue': revenue_trends,
+                },
+                'expiringSubscriptionsList': expiring_data
+            }
+
+            return handle_success(data=data, message="Dashboard stats retrieved successfully")
+        except Exception as e:
+            return handle_error(message=f"Failed to retrieve stats: {str(e)}")
 
 class AttendanceListView(views.APIView):
     permission_classes = [IsAdminOrTrainer]

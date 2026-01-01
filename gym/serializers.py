@@ -15,10 +15,17 @@ class TrainerSerializer(serializers.ModelSerializer):
 
 class MemberSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
+    active_plan = serializers.SerializerMethodField()
     
     class Meta:
         model = Member
         fields = '__all__'
+
+    def get_active_plan(self, obj):
+        active_sub = obj.subscriptions.filter(status='active').first()
+        if active_sub and active_sub.plan:
+            return active_sub.plan.name
+        return "No Active Plan"
 
 class AttendanceRecordSerializer(serializers.ModelSerializer):
     member_details = MemberSerializer(source='member', read_only=True)
