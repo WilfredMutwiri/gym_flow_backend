@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     TrainerListView, TrainerDetailView,
     MemberListView, MemberDetailView,
-    ProgramListView, ProgramDetailView,
+    ProgramListView, ProgramDetailView, AssignProgramView,
     AttendanceListView, WorkoutDayListView,
     WorkoutSetListView, SubscriptionPlanListView,
     MemberSubscriptionListView, PaymentListView,
@@ -38,6 +38,7 @@ urlpatterns = [
     # Programs
     path('programs/', ProgramListView.as_view(), name='program-list'),
     path('programs/<int:pk>/', ProgramDetailView.as_view(), name='program-detail'),
+    path('programs/<int:pk>/assign/', AssignProgramView.as_view(), name='program-assign'),
     
     # Sessions
     path('sessions/', SessionListView.as_view(), name='session-list'),

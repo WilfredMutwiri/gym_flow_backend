@@ -250,13 +250,46 @@ class ProgramDetailView(views.APIView):
             # Normal update without assigned_members
             return self.put(request, pk)
 
-    @swagger_auto_schema(tags=['Programs'], operation_summary='Delete program')
-    def delete(self, request, pk):
-        program = self.get_object(pk)
-        if not program:
-            return handle_not_found()
         program.delete()
         return handle_success(message="Program deleted successfully", status_code=status.HTTP_200_OK)
+
+class AssignProgramView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=['Programs'], 
+        operation_summary='Assign program to member',
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'member_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID of the member')
+            },
+            required=['member_id']
+        )
+    )
+    def post(self, request, pk):
+        """Assign a program to a member"""
+        try:
+            program = Program.objects.get(pk=pk)
+            member_id = request.data.get('member_id')
+            
+            if not member_id:
+                return handle_validation_error(errors={"member_id": "Member ID is required"})
+
+            try:
+                member = Member.objects.get(id=member_id)
+            except Member.DoesNotExist:
+                return handle_not_found(message="Member not found")
+            
+            # Check permissions: Admin or Trainer
+            if request.user.role not in ['admin', 'trainer']:
+                 return handle_error(message="Unauthorized", status_code=status.HTTP_403_FORBIDDEN)
+
+            program.assigned_members.add(member)
+            return handle_success(message="Program assigned successfully")
+            
+        except Program.DoesNotExist:
+            return handle_not_found(message="Program not found")
 
 
 class DashboardStatsView(views.APIView):
