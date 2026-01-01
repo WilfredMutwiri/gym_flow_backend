@@ -181,6 +181,9 @@ class ProgramListView(views.APIView):
 
     @swagger_auto_schema(tags=['Programs'], operation_summary='Create a new program', request_body=ProgramSerializer)
     def post(self, request):
+        if not request.user.role == 'admin':
+             return handle_error(message="Only admins can create programs", status_code=status.HTTP_403_FORBIDDEN)
+        
         serializer = ProgramSerializer(data=request.data)
         if serializer.is_valid():
             if hasattr(request.user, 'trainer_profile'):
