@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     Trainer, Member, AttendanceRecord, Program, WorkoutDay, Exercise, 
     WorkoutSet, SubscriptionPlan, MemberSubscription, Payment, 
-    ProgressEntry, Message
+    ProgressEntry, Message, GymSetting
 )
 from users.serializers import UserSerializer
 
@@ -92,4 +92,9 @@ class MessageSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Message
+        fields = '__all__'
+
+class GymSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GymSetting
         fields = '__all__'

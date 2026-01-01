@@ -188,3 +188,30 @@ class AdminLoginView(views.APIView):
             message='Login successful',
             status_code=status.HTTP_200_OK
         )
+
+class ChangePasswordView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=['Users'],
+        operation_summary='Change user password',
+        request_body=serializers.Serializer, # Simplified for now
+    )
+    def post(self, request):
+        user = request.user
+        current_password = request.data.get('current_password')
+        new_password = request.data.get('new_password')
+        confirm_password = request.data.get('confirm_password')
+
+        if not user.check_password(current_password):
+            return handle_error(message="Incorrect current password", status_code=status.HTTP_400_BAD_REQUEST)
+
+        if new_password != confirm_password:
+            return handle_error(message="New passwords do not match", status_code=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user.set_password(new_password)
+            user.save()
+            return handle_success(message="Password updated successfully")
+        except Exception as e:
+            return handle_error(message=f"Failed to update password: {str(e)}")

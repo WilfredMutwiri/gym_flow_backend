@@ -119,3 +119,17 @@ class Message(BaseModel):
     status = models.CharField(max_length=20)
     sent_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='sent_messages')
+
+class GymSetting(BaseModel):
+    gym_name = models.CharField(max_length=200, default='Gym Flow')
+    address = models.TextField(default='123 Fitness Blvd, Workout City')
+    phone = models.CharField(max_length=20, default='+1 234 567 8900')
+    email = models.EmailField(default='contact@gymflow.com')
+    
+    # Notifications
+    notify_new_member = models.BooleanField(default=True)
+    notify_payment_alerts = models.BooleanField(default=True)
+    notify_maintenance = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.gym_name

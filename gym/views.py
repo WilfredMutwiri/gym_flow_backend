@@ -1,17 +1,17 @@
 from rest_framework import status, views
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
-from .models import (
-    Trainer, Member, AttendanceRecord, Program, WorkoutDay, Exercise, 
-    WorkoutSet, SubscriptionPlan, MemberSubscription, Payment, 
-    ProgressEntry, Message
-)
 from .serializers import (
     TrainerSerializer, MemberSerializer, AttendanceRecordSerializer, 
     ProgramSerializer, WorkoutDaySerializer, ExerciseSerializer, 
     WorkoutSetSerializer, SubscriptionPlanSerializer, 
     MemberSubscriptionSerializer, PaymentSerializer, 
-    ProgressEntrySerializer, MessageSerializer
+    ProgressEntrySerializer, MessageSerializer, GymSettingSerializer
+)
+from .models import (
+    Trainer, Member, AttendanceRecord, Program, WorkoutDay, Exercise, 
+    WorkoutSet, SubscriptionPlan, MemberSubscription, Payment, 
+    ProgressEntry, Message, GymSetting
 )
 from .permissions import IsAdminUser, IsTrainer, IsMember, IsAdminOrTrainer
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -326,6 +326,28 @@ class DashboardStatsView(views.APIView):
             return handle_success(data=data, message="Dashboard stats retrieved successfully")
         except Exception as e:
             return handle_error(message=f"Failed to retrieve stats: {str(e)}")
+
+class GymSettingView(views.APIView):
+    permission_classes = [IsAdminUser]
+
+    def get_object(self):
+        obj, created = GymSetting.objects.get_or_create(id=1)
+        return obj
+
+    @swagger_auto_schema(tags=['Settings'], operation_summary='Get gym settings')
+    def get(self, request):
+        settings = self.get_object()
+        serializer = GymSettingSerializer(settings)
+        return handle_success(data=serializer.data, message="Settings retrieved successfully")
+
+    @swagger_auto_schema(tags=['Settings'], operation_summary='Update gym settings')
+    def patch(self, request):
+        settings = self.get_object()
+        serializer = GymSettingSerializer(settings, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return handle_success(data=serializer.data, message="Settings updated successfully")
+        return handle_validation_error(errors=serializer.errors)
 
 class AttendanceListView(views.APIView):
     permission_classes = [IsAdminOrTrainer]
