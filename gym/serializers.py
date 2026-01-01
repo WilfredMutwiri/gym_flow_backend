@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     Trainer, Member, AttendanceRecord, Program, WorkoutDay, Exercise, 
     WorkoutSet, SubscriptionPlan, MemberSubscription, Payment, 
-    ProgressEntry, Message, GymSetting, Conversation, ChatMessage
+    ProgressEntry, Message, GymSetting, Conversation, ChatMessage, Session
 )
 from users.serializers import UserSerializer
 
