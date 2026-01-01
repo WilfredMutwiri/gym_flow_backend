@@ -880,9 +880,23 @@ class SessionDetailView(views.APIView):
         session = self.get_object(pk, request.user)
         if isinstance(session, Response): return session
         
+        old_status = session.status
+        
         serializer = SessionSerializer(session, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            updated_session = serializer.save()
+            
+            # Auto-create AttendanceRecord if session is completed
+            if old_status != 'completed' and updated_session.status == 'completed':
+                session_date = updated_session.start_time.date()
+                if not AttendanceRecord.objects.filter(member=updated_session.member, date=session_date).exists():
+                    AttendanceRecord.objects.create(
+                        member=updated_session.member,
+                        check_in_time=updated_session.start_time,
+                        date=session_date,
+                        method='session'
+                    )
+
             return handle_success(data=serializer.data, message="Session updated successfully")
         return handle_validation_error(errors=serializer.errors)
 
