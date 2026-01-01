@@ -120,6 +120,31 @@ class Message(BaseModel):
     sent_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='sent_messages')
 
+class Conversation(BaseModel):
+    """Represents a chat conversation between admin and a member"""
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='conversations')
+    last_message_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-last_message_at']
+    
+    def __str__(self):
+        return f"Conversation with {self.member.user.get_full_name()}"
+
+class ChatMessage(BaseModel):
+    """Individual messages in a conversation"""
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='chat_messages')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='chat_messages_sent')
+    content = models.TextField()
+    is_read = models.BooleanField(default=False)
+    sent_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['sent_at']
+    
+    def __str__(self):
+        return f"Message from {self.sender.get_full_name()} at {self.sent_at}"
+
 class GymSetting(BaseModel):
     gym_name = models.CharField(max_length=200, default='Gym Flow')
     address = models.TextField(default='123 Fitness Blvd, Workout City')
