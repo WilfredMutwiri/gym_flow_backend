@@ -9,7 +9,8 @@ from .views import (
     ProgressEntryListView, ExerciseListView,
     MessageListView, DashboardStatsView, ReportsStatsView, MemberDashboardStatsView, GymSettingView,
     MemberProfileUpdateView,
-    SessionListView, SessionDetailView
+    SessionListView, SessionDetailView,
+    TrainerMemberListView
 )
 from .chat_views import ConversationListView, ConversationDetailView, MemberListForChatView
 
