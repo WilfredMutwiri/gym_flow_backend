@@ -16,7 +16,13 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'first_name', 'last_name', 'role']
+        fields = [
+            'email',
+            'password',
+            'first_name',
+            'last_name',
+            'role'
+        ]
 
     def validate_role(self, value):
         if value not in ['member', 'trainer']:
@@ -32,19 +38,25 @@ class RegisterSerializer(serializers.ModelSerializer):
             last_name=validated_data.get('last_name', ''),
             role=validated_data['role']
         )
-        
-        if user.role == 'member':
-            Member.objects.create(
-                user=user,
-                date_of_birth=datetime.date(2000, 1, 1), # Default placeholder
-                gender='Other', # Default
-                address='', 
-                join_date=datetime.date.today()
-            )
-        elif user.role == 'trainer':
-            Trainer.objects.create(
-                user=user,
-                hire_date=datetime.date.today()
-            )
-            
+
+        try:
+            if user.role == 'member':
+                Member.objects.create(
+                    user=user,
+                    date_of_birth=datetime.date(2000, 1, 1),
+                    gender='Other',
+                    address='',
+                    emergency_contact={},
+                    join_date=datetime.date.today()
+                )
+            elif user.role == 'trainer':
+                Trainer.objects.create(
+                    user=user,
+                    hire_date=datetime.date.today(),
+                    specializations=[]
+                )
+        except Exception as e:
+            user.delete()
+            raise serializers.ValidationError({"profile_error": str(e)})
+
         return user
