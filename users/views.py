@@ -166,14 +166,16 @@ class AdminLoginView(views.APIView):
         
         user = authenticate(email=email, password=password)
         
-        if not user or user.role != 'admin':
-            # Use generic error for security, or specific if needed. 
-            # If user exists but is not admin, authenticate returns the user object.
-            # But here `authenticate` will return user if password matches.
-            # We check role.
+        if not user:
             return handle_error(
-                message='Invalid credentials or unauthorized access.',
+                message='Invalid credentials.',
                 status_code=status.HTTP_401_UNAUTHORIZED
+            )
+            
+        if user.role != 'admin':
+            return handle_error(
+                message='Unauthorized access. Admin role required.',
+                status_code=status.HTTP_403_FORBIDDEN
             )
             
         token, _ = Token.objects.get_or_create(user=user)

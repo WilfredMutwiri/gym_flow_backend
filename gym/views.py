@@ -81,10 +81,15 @@ class TrainerDetailView(views.APIView):
         trainer = self.get_object(pk)
         if not trainer:
             return handle_not_found(message="Trainer not found")
-        user = trainer.user
-        trainer.delete()
-        user.delete()
-        return handle_success(message="Trainer and associated user deleted successfully", status_code=status.HTTP_200_OK)
+        
+        from django.db import transaction
+        try:
+            with transaction.atomic():
+                user = trainer.user
+                user.delete() # This will cascade delete the trainer profile
+            return handle_success(message="Trainer and associated user deleted successfully", status_code=status.HTTP_200_OK)
+        except Exception as e:
+            return handle_error(message=f"Failed to delete trainer: {str(e)}")
 
 class MemberListView(views.APIView):
     permission_classes = [IsAdminOrTrainer]
@@ -136,10 +141,15 @@ class MemberDetailView(views.APIView):
         member = self.get_object(pk)
         if not member:
             return handle_not_found(message="Member not found")
-        user = member.user
-        member.delete()
-        user.delete()
-        return handle_success(message="Member and associated user deleted successfully", status_code=status.HTTP_200_OK)
+        
+        from django.db import transaction
+        try:
+            with transaction.atomic():
+                user = member.user
+                user.delete() # This will cascade delete member profile, attendance, etc.
+            return handle_success(message="Member and associated user deleted successfully", status_code=status.HTTP_200_OK)
+        except Exception as e:
+            return handle_error(message=f"Failed to delete member: {str(e)}")
 
 class ProgramListView(views.APIView):
     permission_classes = [IsAuthenticated]
