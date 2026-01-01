@@ -41,6 +41,11 @@ urlpatterns = [
     # Sessions
     path('sessions/', SessionListView.as_view(), name='session-list'),
     path('sessions/<int:pk>/', SessionDetailView.as_view(), name='session-detail'),
+
+    # Trainer Members
+    path('trainer/members/', TrainerMemberListView.as_view(), name='trainer-member-list'),
+    # Member Progress
+    path('members/<int:member_id>/progress/', ProgressEntryListView.as_view(), name='member-progress-list'),
     
     # Other Entities
     path('attendance/', AttendanceListView.as_view(), name='attendance-list'),
