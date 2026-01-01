@@ -29,7 +29,7 @@ from datetime import timedelta
 
 
 class TrainerListView(views.APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
         tags=['Trainers'],
@@ -48,6 +48,9 @@ class TrainerListView(views.APIView):
         responses={201: TrainerSerializer()}
     )
     def post(self, request):
+        if request.user.role != 'admin':
+            return handle_error(message="You do not have permission to perform this action.", status_code=status.HTTP_403_FORBIDDEN)
+            
         serializer = TrainerSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
