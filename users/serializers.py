@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.db import transaction
+
 from gym.models import Member, Trainer
 import datetime
 
@@ -17,6 +19,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
+            'username',
             'email',
             'password',
             'first_name',
@@ -29,9 +32,11 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Role must be 'member' or 'trainer'.")
         return value
 
+    @transaction.atomic
     def create(self, validated_data):
+        username = validated_data.get('username', validated_data['email'])
         user = User.objects.create_user(
-            username=validated_data['email'],
+            username=username,
             email=validated_data['email'],
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
@@ -56,7 +61,7 @@ class RegisterSerializer(serializers.ModelSerializer):
                     specializations=[]
                 )
         except Exception as e:
-            user.delete()
+            # transaction.atomic will handle rollback of user creation
             raise serializers.ValidationError({"profile_error": str(e)})
 
         return user
