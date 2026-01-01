@@ -76,6 +76,9 @@ class TrainerDetailView(views.APIView):
             return handle_success(data=serializer.data, message="Trainer updated successfully", status_code=status.HTTP_200_OK)
         return handle_validation_error(errors=serializer.errors)
 
+    def patch(self, request, pk):
+        return self.put(request, pk)
+
     @swagger_auto_schema(tags=['Trainers'], operation_summary='Delete trainer')
     def delete(self, request, pk):
         trainer = self.get_object(pk)
@@ -135,6 +138,9 @@ class MemberDetailView(views.APIView):
             serializer.save()
             return handle_success(data=serializer.data, message="Member updated successfully", status_code=status.HTTP_200_OK)
         return handle_validation_error(errors=serializer.errors)
+
+    def patch(self, request, pk):
+        return self.put(request, pk)
 
     @swagger_auto_schema(tags=['Members'], operation_summary='Delete member')
     def delete(self, request, pk):
@@ -202,6 +208,9 @@ class ProgramDetailView(views.APIView):
             serializer.save()
             return handle_success(data=serializer.data, message="Program updated successfully", status_code=status.HTTP_200_OK)
         return handle_validation_error(errors=serializer.errors)
+
+    def patch(self, request, pk):
+        return self.put(request, pk)
 
     @swagger_auto_schema(tags=['Programs'], operation_summary='Delete program')
     def delete(self, request, pk):
