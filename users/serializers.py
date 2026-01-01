@@ -15,6 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    username = serializers.CharField(required=False)
 
     class Meta:
         model = User
@@ -30,12 +31,6 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate_role(self, value):
         if value not in ['member', 'trainer']:
             raise serializers.ValidationError("Role must be 'member' or 'trainer'.")
-        return value
-
-class AdminRegisterSerializer(RegisterSerializer):
-    def validate_role(self, value):
-        if value != 'admin':
-            raise serializers.ValidationError("Role must be 'admin'.")
         return value
 
     @transaction.atomic
@@ -71,3 +66,9 @@ class AdminRegisterSerializer(RegisterSerializer):
             raise serializers.ValidationError({"profile_error": str(e)})
 
         return user
+
+class AdminRegisterSerializer(RegisterSerializer):
+    def validate_role(self, value):
+        if value != 'admin':
+            raise serializers.ValidationError("Role must be 'admin'.")
+        return value
