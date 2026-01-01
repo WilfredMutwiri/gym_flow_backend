@@ -869,7 +869,8 @@ class TrainerMemberListView(views.APIView):
         try:
             trainer = Trainer.objects.get(user=request.user)
             # Find members who have booked sessions with this trainer
-            members = Member.objects.filter(session__trainer=trainer).distinct()
+            # Use 'booked_sessions' related_name from Session.member
+            members = Member.objects.filter(booked_sessions__trainer=trainer).distinct()
             serializer = MemberSerializer(members, many=True)
             return handle_success(data=serializer.data, message="Assigned members retrieved successfully")
         except Trainer.DoesNotExist:
