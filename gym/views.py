@@ -482,6 +482,12 @@ class MemberDashboardStatsView(views.APIView):
             
             # 2. Get enrolled programs
             enrolled_programs = member.assigned_programs.filter(status='active')
+            
+            # Debug logging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Member {member.id} ({member.user.email}) - Total programs: {member.assigned_programs.count()}, Active: {enrolled_programs.count()}")
+            
             programs_data = []
             for program in enrolled_programs:
                 programs_data.append({

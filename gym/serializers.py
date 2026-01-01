@@ -56,6 +56,7 @@ class WorkoutDaySerializer(serializers.ModelSerializer):
 class ProgramSerializer(serializers.ModelSerializer):
     workout_days = WorkoutDaySerializer(many=True, read_only=True)
     created_by_details = TrainerSerializer(source='created_by', read_only=True)
+    assigned_members = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     
     class Meta:
         model = Program
