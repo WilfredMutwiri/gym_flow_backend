@@ -21,15 +21,19 @@ class ConversationListView(views.APIView):
         user = request.user
         
         if user.role == 'admin':
-            # Admin sees all conversations
             conversations = Conversation.objects.all()
         elif user.role == 'member':
-            # Members see only their conversations
             try:
                 member = Member.objects.get(user=user)
                 conversations = Conversation.objects.filter(member=member)
             except Member.DoesNotExist:
                 return handle_error(message="Member profile not found", status_code=status.HTTP_404_NOT_FOUND)
+        elif user.role == 'trainer':
+             try:
+                trainer = Trainer.objects.get(user=user)
+                conversations = Conversation.objects.filter(trainer=trainer)
+             except Trainer.DoesNotExist:
+                return handle_error(message="Trainer profile not found", status_code=status.HTTP_404_NOT_FOUND)
         else:
             return handle_error(message="Unauthorized", status_code=status.HTTP_403_FORBIDDEN)
         
@@ -42,34 +46,46 @@ class ConversationListView(views.APIView):
         member_id = request.data.get('member_id')
         trainer_id = request.data.get('trainer_id')
         
-        # If user is a member, they don't need to send member_id (it's them)
+        member = None
+        trainer = None
+
+        # Determine participants based on user role
         if request.user.role == 'member':
             try:
                 member = Member.objects.get(user=request.user)
+                if trainer_id:
+                    try:
+                        trainer = Trainer.objects.get(id=trainer_id)
+                    except Trainer.DoesNotExist:
+                        return handle_not_found(message="Trainer not found")
             except Member.DoesNotExist:
                 return handle_error(message="Member profile not found")
-        else:
-            if not member_id:
-                return handle_validation_error(errors={'member_id': 'This field is required'})
-            try:
-                member = Member.objects.get(id=member_id)
-            except Member.DoesNotExist:
-                return handle_not_found(message="Member not found")
         
-        # Get Trainer if specified
-        trainer = None
-        if trainer_id:
+        elif request.user.role == 'trainer':
             try:
-                trainer = Trainer.objects.get(id=trainer_id)
+                trainer = Trainer.objects.get(user=request.user)
+                if member_id:
+                     try:
+                         member = Member.objects.get(id=member_id)
+                     except Member.DoesNotExist:
+                         return handle_not_found(message="Member not found")
+                else:
+                    return handle_validation_error(errors={'member_id': 'This field is required'})
             except Trainer.DoesNotExist:
-                return handle_not_found(message="Trainer not found")
+                 return handle_error(message="Trainer profile not found")
+                 
+        elif request.user.role == 'admin':
+            # Admin needs both
+            if not member_id: return handle_validation_error(errors={'member_id': 'Required'})
+            member = Member.objects.get(id=member_id)
+            if trainer_id: trainer = Trainer.objects.get(id=trainer_id)
+            
+        else:
+             return handle_error(message="Unauthorized", status_code=status.HTTP_403_FORBIDDEN)
 
         # Get or create conversation
-        if trainer:
-            conversation, created = Conversation.objects.get_or_create(member=member, trainer=trainer)
-        else:
-            # General support chat (no trainer)
-            conversation, created = Conversation.objects.get_or_create(member=member, trainer=None)
+        # Note: trainer can be None (support chat)
+        conversation, created = Conversation.objects.get_or_create(member=member, trainer=trainer)
             
         serializer = ConversationSerializer(conversation, context={'request': request})
         
@@ -97,6 +113,13 @@ class ConversationDetailView(views.APIView):
                     return handle_error(message="Unauthorized", status_code=status.HTTP_403_FORBIDDEN)
             except Member.DoesNotExist:
                 return handle_error(message="Member profile not found", status_code=status.HTTP_404_NOT_FOUND)
+        elif user.role == 'trainer':
+            try:
+                trainer = Trainer.objects.get(user=user)
+                if conversation.trainer != trainer:
+                     return handle_error(message="Unauthorized", status_code=status.HTTP_403_FORBIDDEN)
+            except Trainer.DoesNotExist:
+                return handle_error(message="Trainer profile not found")
         
         # Mark messages as read
         conversation.chat_messages.filter(is_read=False).exclude(sender=user).update(is_read=True)
@@ -126,6 +149,13 @@ class ConversationDetailView(views.APIView):
                     return handle_error(message="Unauthorized", status_code=status.HTTP_403_FORBIDDEN)
             except Member.DoesNotExist:
                 return handle_error(message="Member profile not found", status_code=status.HTTP_404_NOT_FOUND)
+        elif user.role == 'trainer':
+            try:
+                trainer = Trainer.objects.get(user=user)
+                if conversation.trainer != trainer:
+                      return handle_error(message="Unauthorized", status_code=status.HTTP_403_FORBIDDEN)
+            except Trainer.DoesNotExist:
+                 return handle_error(message="Trainer profile not found")
         
         # Create message
         message = ChatMessage.objects.create(
