@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status, views
+from rest_framework import viewsets, status, views, serializers
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import get_user_model, authenticate

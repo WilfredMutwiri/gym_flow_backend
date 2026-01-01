@@ -7,7 +7,6 @@ from .views import (
     WorkoutSetListView, SubscriptionPlanListView,
     MemberSubscriptionListView, PaymentListView,
     ProgressEntryListView, ExerciseListView,
-    ProgressEntryListView, ExerciseListView,
     MessageListView, DashboardStatsView, GymSettingView
 )
 
