@@ -210,7 +210,33 @@ class ProgramDetailView(views.APIView):
         return handle_validation_error(errors=serializer.errors)
 
     def patch(self, request, pk):
-        return self.put(request, pk)
+        program = self.get_object(pk)
+        if not program:
+            return handle_not_found()
+        
+        # Handle assigned_members separately if present
+        assigned_members_ids = request.data.get('assigned_members')
+        if assigned_members_ids is not None:
+            # Remove assigned_members from data to avoid serializer issues
+            data = {k: v for k, v in request.data.items() if k != 'assigned_members'}
+            
+            # Update other fields if any
+            if data:
+                serializer = ProgramSerializer(program, data=data, partial=True)
+                if serializer.is_valid():
+                    serializer.save()
+                else:
+                    return handle_validation_error(errors=serializer.errors)
+            
+            # Update assigned_members ManyToMany relationship
+            program.assigned_members.set(assigned_members_ids)
+            
+            # Return updated program
+            updated_serializer = ProgramSerializer(program)
+            return handle_success(data=updated_serializer.data, message="Program updated successfully", status_code=status.HTTP_200_OK)
+        else:
+            # Normal update without assigned_members
+            return self.put(request, pk)
 
     @swagger_auto_schema(tags=['Programs'], operation_summary='Delete program')
     def delete(self, request, pk):
