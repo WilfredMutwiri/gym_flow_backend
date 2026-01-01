@@ -32,6 +32,12 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Role must be 'member' or 'trainer'.")
         return value
 
+class AdminRegisterSerializer(RegisterSerializer):
+    def validate_role(self, value):
+        if value != 'admin':
+            raise serializers.ValidationError("Role must be 'admin'.")
+        return value
+
     @transaction.atomic
     def create(self, validated_data):
         username = validated_data.get('username', validated_data['email'])

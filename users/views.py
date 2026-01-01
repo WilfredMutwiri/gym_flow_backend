@@ -14,7 +14,7 @@ from shared.responses import (
 
 User = get_user_model()
 
-from .serializers import UserSerializer, RegisterSerializer
+from .serializers import UserSerializer, RegisterSerializer, AdminRegisterSerializer
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from gym.permissions import IsAdminOrTrainer
 from rest_framework import generics
@@ -71,6 +71,37 @@ class RegisterView(APIView):
         return handle_error(
             errors=serializer.errors,
             message='User registration failed',
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+class AdminRegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        tags=['Users'],
+        operation_summary='Register a new admin',
+        request_body=AdminRegisterSerializer,
+        responses={
+            201: 'Admin registered successfully',
+            400: 'Bad request',
+        }
+    )
+    def post(self, request):
+        serializer = AdminRegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            token, _ = Token.objects.get_or_create(user=user)
+            return  handle_success(
+                data={
+                    'token': token.key,
+                    'user': UserSerializer(user).data
+                },
+                message='Admin registered successfully',
+                status_code=status.HTTP_201_CREATED
+            )
+        return handle_error(
+            errors=serializer.errors,
+            message='Admin registration failed',
             status_code=status.HTTP_400_BAD_REQUEST
         )
  
