@@ -8,7 +8,8 @@ from .views import (
     MemberSubscriptionListView, PaymentListView,
     ProgressEntryListView, ExerciseListView,
     MessageListView, DashboardStatsView, ReportsStatsView, MemberDashboardStatsView, GymSettingView,
-    MemberProfileUpdateView
+    MemberProfileUpdateView,
+    SessionListView, SessionDetailView
 )
 from .chat_views import ConversationListView, ConversationDetailView, MemberListForChatView
 
@@ -36,6 +37,10 @@ urlpatterns = [
     # Programs
     path('programs/', ProgramListView.as_view(), name='program-list'),
     path('programs/<int:pk>/', ProgramDetailView.as_view(), name='program-detail'),
+    
+    # Sessions
+    path('sessions/', SessionListView.as_view(), name='session-list'),
+    path('sessions/<int:pk>/', SessionDetailView.as_view(), name='session-detail'),
     
     # Other Entities
     path('attendance/', AttendanceListView.as_view(), name='attendance-list'),

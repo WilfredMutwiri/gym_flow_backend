@@ -1,17 +1,19 @@
 from rest_framework import status, views
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from .serializers import (
     TrainerSerializer, MemberSerializer, AttendanceRecordSerializer, 
     ProgramSerializer, WorkoutDaySerializer, ExerciseSerializer, 
     WorkoutSetSerializer, SubscriptionPlanSerializer, 
     MemberSubscriptionSerializer, PaymentSerializer, 
-    ProgressEntrySerializer, MessageSerializer, GymSettingSerializer
+    ProgressEntrySerializer, MessageSerializer, GymSettingSerializer,
+    SessionSerializer
 )
 from .models import (
     Trainer, Member, AttendanceRecord, Program, WorkoutDay, Exercise, 
     WorkoutSet, SubscriptionPlan, MemberSubscription, Payment, 
-    ProgressEntry, Message, GymSetting
+    ProgressEntry, Message, GymSetting, Session
 )
 from .permissions import IsAdminUser, IsTrainer, IsMember, IsAdminOrTrainer
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -749,3 +751,100 @@ class MemberProfileUpdateView(views.APIView):
             return handle_not_found(message="Member profile not found")
         except Exception as e:
             return handle_error(message=f"Failed to update profile: {str(e)}")
+
+class SessionListView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=['Sessions'],
+        operation_summary='List sessions',
+        manual_parameters=[
+            openapi.Parameter('trainer_id', openapi.IN_QUERY, description="Filter by trainer ID", type=openapi.TYPE_INTEGER),
+        ],
+        responses={200: SessionSerializer(many=True)}
+    )
+    def get(self, request):
+        user = request.user
+        queryset = Session.objects.all()
+        
+        # Filter based on user role
+        if user.role == 'member':
+            queryset = queryset.filter(member__user=user)
+        elif user.role == 'trainer':
+            queryset = queryset.filter(trainer__user=user)
+            
+        # Optional filters
+        trainer_id = request.query_params.get('trainer_id')
+        if trainer_id:
+            queryset = queryset.filter(trainer_id=trainer_id)
+            
+        serializer = SessionSerializer(queryset, many=True)
+        return handle_success(data=serializer.data, message="Sessions retrieved successfully")
+
+    @swagger_auto_schema(
+        tags=['Sessions'],
+        operation_summary='Book a session',
+        request_body=SessionSerializer,
+        responses={201: SessionSerializer()}
+    )
+    def post(self, request):
+        # If user is member, auto-assign member field
+        data = request.data.copy()
+        if request.user.role == 'member':
+            try:
+                member = Member.objects.get(user=request.user)
+                data['member'] = member.id
+            except Member.DoesNotExist:
+                return handle_error(message="Member profile not found")
+        
+        serializer = SessionSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return handle_success(data=serializer.data, message="Session booked successfully", status_code=status.HTTP_201_CREATED)
+        return handle_validation_error(errors=serializer.errors)
+
+class SessionDetailView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk, user):
+        try:
+            session = Session.objects.get(pk=pk)
+            # Check permissions
+            if user.role == 'member' and session.member.user != user:
+                return None
+            if user.role == 'trainer' and session.trainer.user != user:
+                return None
+            return session
+        except Session.DoesNotExist:
+            return None
+
+    @swagger_auto_schema(tags=['Sessions'], operation_summary='Get session details')
+    def get(self, request, pk):
+        session = self.get_object(pk, request.user)
+        if not session:
+            return handle_not_found(message="Session not found or permission denied")
+        
+        serializer = SessionSerializer(session)
+        return handle_success(data=serializer.data, message="Session details retrieved")
+
+    @swagger_auto_schema(tags=['Sessions'], operation_summary='Update session')
+    def patch(self, request, pk):
+        session = self.get_object(pk, request.user)
+        if not session:
+            return handle_not_found(message="Session not found or permission denied")
+            
+        serializer = SessionSerializer(session, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return handle_success(data=serializer.data, message="Session updated successfully")
+        return handle_validation_error(errors=serializer.errors)
+
+    @swagger_auto_schema(tags=['Sessions'], operation_summary='Cancel session')
+    def delete(self, request, pk):
+        session = self.get_object(pk, request.user)
+        if not session:
+             return handle_not_found(message="Session not found or permission denied")
+        
+        session.status = 'cancelled'
+        session.save()
+        return handle_success(message="Session cancelled successfully")

@@ -88,12 +88,24 @@ class ProgressEntrySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class MessageSerializer(serializers.ModelSerializer):
-    recipient_details = MemberSerializer(source='recipient', read_only=True)
-    sender_details = UserSerializer(source='created_by', read_only=True)
-    
+    sender_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    recipient_name = serializers.CharField(source='recipient.user.get_full_name', read_only=True)
+
     class Meta:
         model = Message
-        fields = '__all__'
+        fields = ['id', 'recipient', 'recipient_name', 'type', 'subject', 'content', 'channel', 
+                 'status', 'sent_at', 'created_by', 'sender_name']
+        read_only_fields = ['sent_at', 'created_by']
+
+class SessionSerializer(serializers.ModelSerializer):
+    trainer_name = serializers.CharField(source='trainer.user.get_full_name', read_only=True)
+    member_name = serializers.CharField(source='member.user.get_full_name', read_only=True)
+    
+    class Meta:
+        model = Session
+        fields = ['id', 'trainer', 'member', 'trainer_name', 'member_name', 
+                 'start_time', 'end_time', 'status', 'notes', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'member']
 
 class GymSettingSerializer(serializers.ModelSerializer):
     class Meta:

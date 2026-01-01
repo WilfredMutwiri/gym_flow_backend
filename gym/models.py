@@ -123,12 +123,15 @@ class Message(BaseModel):
 class Conversation(BaseModel):
     """Represents a chat conversation between admin and a member"""
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='conversations')
+    trainer = models.ForeignKey(Trainer, on_delete=models.CASCADE, null=True, blank=True, related_name='conversations')
     last_message_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         ordering = ['-last_message_at']
     
     def __str__(self):
+        if self.trainer:
+            return f"Conversation: {self.member.user.get_full_name()} <-> {self.trainer.user.get_full_name()}"
         return f"Conversation with {self.member.user.get_full_name()}"
 
 class ChatMessage(BaseModel):
@@ -144,6 +147,17 @@ class ChatMessage(BaseModel):
     
     def __str__(self):
         return f"Message from {self.sender.get_full_name()} at {self.sent_at}"
+
+class Session(BaseModel):
+    trainer = models.ForeignKey(Trainer, on_delete=models.CASCADE, related_name='scheduled_sessions')
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='booked_sessions')
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+    status = models.CharField(max_length=20, default='pending') # pending, confirmed, cancelled, completed
+    notes = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Session: {self.member.user.get_full_name()} with {self.trainer.user.get_full_name()}"
 
 class GymSetting(BaseModel):
     gym_name = models.CharField(max_length=200, default='Gym Flow')

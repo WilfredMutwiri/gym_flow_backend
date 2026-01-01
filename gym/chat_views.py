@@ -1,7 +1,7 @@
 from rest_framework import status, views
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
-from .models import Conversation, ChatMessage, Member
+from .models import Conversation, ChatMessage, Member, Trainer
 from .serializers import ConversationSerializer, ChatMessageSerializer
 from .permissions import IsAdminUser
 from rest_framework.permissions import IsAuthenticated
@@ -40,17 +40,37 @@ class ConversationListView(views.APIView):
     def post(self, request):
         """Create a new conversation or get existing one"""
         member_id = request.data.get('member_id')
+        trainer_id = request.data.get('trainer_id')
         
-        if not member_id:
-            return handle_validation_error(errors={'member_id': 'This field is required'})
+        # If user is a member, they don't need to send member_id (it's them)
+        if request.user.role == 'member':
+            try:
+                member = Member.objects.get(user=request.user)
+            except Member.DoesNotExist:
+                return handle_error(message="Member profile not found")
+        else:
+            if not member_id:
+                return handle_validation_error(errors={'member_id': 'This field is required'})
+            try:
+                member = Member.objects.get(id=member_id)
+            except Member.DoesNotExist:
+                return handle_not_found(message="Member not found")
         
-        try:
-            member = Member.objects.get(id=member_id)
-        except Member.DoesNotExist:
-            return handle_not_found(message="Member not found")
-        
+        # Get Trainer if specified
+        trainer = None
+        if trainer_id:
+            try:
+                trainer = Trainer.objects.get(id=trainer_id)
+            except Trainer.DoesNotExist:
+                return handle_not_found(message="Trainer not found")
+
         # Get or create conversation
-        conversation, created = Conversation.objects.get_or_create(member=member)
+        if trainer:
+            conversation, created = Conversation.objects.get_or_create(member=member, trainer=trainer)
+        else:
+            # General support chat (no trainer)
+            conversation, created = Conversation.objects.get_or_create(member=member, trainer=None)
+            
         serializer = ConversationSerializer(conversation, context={'request': request})
         
         message = "Conversation created successfully" if created else "Conversation retrieved successfully"
