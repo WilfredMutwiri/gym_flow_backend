@@ -455,7 +455,7 @@ class MemberDashboardStatsView(views.APIView):
                 }
             
             # 2. Get enrolled programs
-            enrolled_programs = member.programs.filter(status='active')
+            enrolled_programs = member.assigned_programs.filter(status='active')
             programs_data = []
             for program in enrolled_programs:
                 programs_data.append({
