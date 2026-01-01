@@ -486,7 +486,7 @@ class MemberDashboardStatsView(views.APIView):
             # 4. Get recent progress entries
             progress_entries = ProgressEntry.objects.filter(
                 member=member
-            ).order_by('-recorded_at')[:2]
+            ).order_by('-date')[:2]
             
             weight_change = 0
             if progress_entries.count() >= 2:
