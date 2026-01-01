@@ -414,6 +414,115 @@ class ReportsStatsView(views.APIView):
         except Exception as e:
             return handle_error(message=f"Failed to retrieve stats: {str(e)}")
 
+class MemberDashboardStatsView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=['Stats'],
+        operation_summary='Get member dashboard statistics'
+    )
+    def get(self, request):
+        """Get dashboard stats for the logged-in member"""
+        try:
+            user = request.user
+            
+            # Ensure user is a member
+            if user.role != 'member':
+                return handle_error(message="This endpoint is for members only", status_code=status.HTTP_403_FORBIDDEN)
+            
+            try:
+                member = Member.objects.get(user=user)
+            except Member.DoesNotExist:
+                return handle_error(message="Member profile not found", status_code=status.HTTP_404_NOT_FOUND)
+            
+            today = timezone.now().date()
+            
+            # 1. Get active subscription
+            active_subscription = member.subscriptions.filter(status='active').first()
+            subscription_data = None
+            days_until_expiry = 0
+            
+            if active_subscription:
+                days_until_expiry = (active_subscription.end_date - today).days
+                subscription_data = {
+                    'id': active_subscription.id,
+                    'plan_name': active_subscription.plan.name if active_subscription.plan else 'N/A',
+                    'start_date': active_subscription.start_date,
+                    'end_date': active_subscription.end_date,
+                    'status': active_subscription.status,
+                    'amount': float(active_subscription.amount),
+                    'days_until_expiry': days_until_expiry
+                }
+            
+            # 2. Get enrolled programs
+            enrolled_programs = member.programs.filter(status='active')
+            programs_data = []
+            for program in enrolled_programs:
+                programs_data.append({
+                    'id': program.id,
+                    'name': program.name,
+                    'description': program.description,
+                    'duration': program.duration,
+                    'difficulty': program.difficulty,
+                    'goal': program.goal,
+                    'status': program.status
+                })
+            
+            # 3. Calculate attendance streak
+            attendance_records = AttendanceRecord.objects.filter(
+                member=member
+            ).order_by('-date')
+            
+            attendance_streak = 0
+            if attendance_records.exists():
+                current_date = today
+                for record in attendance_records:
+                    if record.date == current_date or record.date == current_date - timedelta(days=1):
+                        attendance_streak += 1
+                        current_date = record.date - timedelta(days=1)
+                    else:
+                        break
+            
+            # 4. Get recent progress entries
+            progress_entries = ProgressEntry.objects.filter(
+                member=member
+            ).order_by('-recorded_at')[:2]
+            
+            weight_change = 0
+            if progress_entries.count() >= 2:
+                latest_weight = progress_entries[0].weight or 0
+                previous_weight = progress_entries[1].weight or 0
+                weight_change = latest_weight - previous_weight
+            
+            # 5. Attendance count (last 30 days)
+            thirty_days_ago = today - timedelta(days=30)
+            attendance_count = AttendanceRecord.objects.filter(
+                member=member,
+                date__gte=thirty_days_ago
+            ).count()
+            
+            data = {
+                'member_info': {
+                    'id': member.id,
+                    'name': f"{user.first_name} {user.last_name}",
+                    'email': user.email,
+                    'status': member.status
+                },
+                'subscription': subscription_data,
+                'programs': programs_data,
+                'stats': {
+                    'attendance_streak': attendance_streak,
+                    'weight_change': float(weight_change),
+                    'active_programs_count': enrolled_programs.count(),
+                    'days_until_expiry': days_until_expiry,
+                    'attendance_last_30_days': attendance_count
+                }
+            }
+            
+            return handle_success(data=data, message="Member dashboard stats retrieved successfully")
+        except Exception as e:
+            return handle_error(message=f"Failed to retrieve stats: {str(e)}")
+
 class GymSettingView(views.APIView):
     permission_classes = [IsAdminUser]
 
