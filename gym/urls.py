@@ -13,15 +13,15 @@ from .views import (
 urlpatterns = [
     # Trainers
     path('trainers/', TrainerListView.as_view(), name='trainer-list'),
-    path('trainers/<uuid:pk>/', TrainerDetailView.as_view(), name='trainer-detail'),
+    path('trainers/<int:pk>/', TrainerDetailView.as_view(), name='trainer-detail'),
     
     # Members
     path('members/', MemberListView.as_view(), name='member-list'),
-    path('members/<uuid:pk>/', MemberDetailView.as_view(), name='member-detail'),
+    path('members/<int:pk>/', MemberDetailView.as_view(), name='member-detail'),
     
     # Programs
     path('programs/', ProgramListView.as_view(), name='program-list'),
-    path('programs/<uuid:pk>/', ProgramDetailView.as_view(), name='program-detail'),
+    path('programs/<int:pk>/', ProgramDetailView.as_view(), name='program-detail'),
     
     # Other Entities
     path('attendance/', AttendanceListView.as_view(), name='attendance-list'),
