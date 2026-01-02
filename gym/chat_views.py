@@ -21,8 +21,10 @@ class ConversationListView(views.APIView):
         user = request.user
         
         if user.role == 'admin':
-            # Admins see everything
-            conversations = Conversation.objects.all()
+            # Admins only see support conversations (Member-Admin or Trainer-Admin)
+            # Regular Trainer-Member conversations have both member and trainer defined.
+            from django.db.models import Q
+            conversations = Conversation.objects.filter(Q(member__isnull=True) | Q(trainer__isnull=True))
         elif user.role == 'member':
             try:
                 member = Member.objects.get(user=user)

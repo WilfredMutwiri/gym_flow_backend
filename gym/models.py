@@ -131,9 +131,13 @@ class Conversation(BaseModel):
         ordering = ['-last_message_at']
     
     def __str__(self):
-        if self.trainer:
+        if self.member and self.trainer:
             return f"Conversation: {self.member.user.get_full_name()} <-> {self.trainer.user.get_full_name()}"
-        return f"Conversation with {self.member.user.get_full_name()}"
+        if self.member:
+            return f"Conversation with Member: {self.member.user.get_full_name()}"
+        if self.trainer:
+            return f"Conversation with Trainer: {self.trainer.user.get_full_name()}"
+        return f"Support Conversation {self.id}"
 
 class ChatMessage(BaseModel):
     """Individual messages in a conversation"""
