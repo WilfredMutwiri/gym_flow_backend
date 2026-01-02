@@ -378,6 +378,14 @@ class DebugEmailSettingsView(APIView):
         except Exception as e:
             results['SMTP_IPV4_TEST'] = f"Failed: {str(e)}"
 
+        # Test 5: SendGrid Port 2525 (Alternative Port Check)
+        try:
+            sock = socket.create_connection(('smtp.sendgrid.net', 2525), timeout=5)
+            results['SENDGRID_PORT_2525_TEST'] = "Success"
+            sock.close()
+        except Exception as e:
+            results['SENDGRID_PORT_2525_TEST'] = f"Failed: {str(e)}"
+
         return Response({
             "EMAIL_CONFIG": {
                 "HOST": settings.EMAIL_HOST,
