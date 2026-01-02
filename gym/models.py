@@ -68,6 +68,7 @@ class WorkoutSet(BaseModel):
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
     sets = models.IntegerField()
     reps = models.CharField(max_length=50)
+    weight = models.FloatField(null=True, blank=True)
     rest = models.CharField(max_length=50)
     notes = models.TextField(blank=True, null=True)
     safety_notes = models.TextField(blank=True, null=True)
