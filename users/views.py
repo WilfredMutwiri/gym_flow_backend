@@ -13,6 +13,7 @@ from shared.responses import (
 )
 
 User = get_user_model()
+from gym.models import Notification
 
 from .serializers import UserSerializer, RegisterSerializer, AdminRegisterSerializer
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
@@ -60,6 +61,16 @@ class RegisterView(APIView):
         if serializer.is_valid():
             user = serializer.save()
             token, _ = Token.objects.get_or_create(user=user)
+            
+            # Notify all admins about new registration
+            admins = User.objects.filter(role='admin')
+            for admin in admins:
+                Notification.objects.create(
+                    recipient=admin,
+                    title="New Member Registration",
+                    message=f"A new member has signed up: {user.get_full_name()} ({user.email})."
+                )
+
             return  handle_success(
                 data={
                     'token': token.key,

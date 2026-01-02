@@ -142,9 +142,21 @@ class MemberDetailView(views.APIView):
         member = self.get_object(pk)
         if not member:
             return handle_not_found(message="Member not found")
+        
+        old_trainer = member.assigned_trainer
         serializer = MemberSerializer(member, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            member = serializer.save()
+            
+            # If trainer changed/assigned, notify the trainer
+            new_trainer = member.assigned_trainer
+            if new_trainer and new_trainer != old_trainer:
+                Notification.objects.create(
+                    recipient=new_trainer.user,
+                    title="New Client Assigned",
+                    message=f"You have been assigned a new client: {member.user.get_full_name()}."
+                )
+
             return handle_success(data=serializer.data, message="Member updated successfully", status_code=status.HTTP_200_OK)
         return handle_validation_error(errors=serializer.errors)
 
@@ -959,7 +971,16 @@ class ProgressEntryListView(views.APIView):
     def post(self, request):
         serializer = ProgressEntrySerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(recorded_by=request.user)
+            entry = serializer.save(recorded_by=request.user)
+            
+            # Notify member if recorded by trainer
+            if request.user.role == 'trainer':
+                Notification.objects.create(
+                    recipient=entry.member.user,
+                    title="Progress Updated",
+                    message=f"Your trainer {request.user.get_full_name()} has updated your progress records."
+                )
+                
             return handle_success(data=serializer.data, message="Progress entry recorded successfully", status_code=status.HTTP_201_CREATED)
         return handle_validation_error(errors=serializer.errors)
 

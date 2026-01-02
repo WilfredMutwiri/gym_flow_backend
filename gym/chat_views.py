@@ -1,7 +1,7 @@
 from rest_framework import status, views
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
-from .models import Conversation, ChatMessage, Member, Trainer
+from .models import Conversation, ChatMessage, Member, Trainer, Notification
 from .serializers import ConversationSerializer, ChatMessageSerializer
 from .permissions import IsAdminUser
 from rest_framework.permissions import IsAuthenticated
@@ -163,6 +163,27 @@ class ConversationDetailView(views.APIView):
             sender=user,
             content=content
         )
+        
+        # Create Notification for the recipient
+        recipient = None
+        if user.role == 'member':
+            if conversation.trainer:
+                recipient = conversation.trainer.user
+        elif user.role == 'trainer':
+            recipient = conversation.member.user
+        elif user.role == 'admin':
+            # Notify whoever is the other party
+             if conversation.trainer and conversation.trainer.user != user:
+                 recipient = conversation.trainer.user
+             elif conversation.member.user != user:
+                 recipient = conversation.member.user
+        
+        if recipient:
+            Notification.objects.create(
+                recipient=recipient,
+                title=f"New Message from {user.get_full_name()}",
+                message=content[:100] + ("..." if len(content) > 100 else "")
+            )
         
         # Update conversation's last_message_at
         conversation.save()  # This triggers auto_now on last_message_at
