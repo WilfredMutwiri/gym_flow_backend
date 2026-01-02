@@ -162,10 +162,15 @@ class ConversationDetailView(views.APIView):
             if conversation.trainer:
                 recipient = conversation.trainer.user
             else:
+                # Support conversation - restore for all admins who deleted it
                 from django.contrib.auth import get_user_model
                 User = get_user_model()
                 admins = User.objects.filter(role='admin')
                 for admin in admins:
+                    # Restore conversation for admin if they deleted it
+                    if admin in conversation.deleted_by.all():
+                        conversation.deleted_by.remove(admin)
+                    
                     Notification.objects.create(
                         recipient=admin,
                         title=f"New Support Message from {user.get_full_name()}",
@@ -175,11 +180,16 @@ class ConversationDetailView(views.APIView):
             if conversation.member:
                 recipient = conversation.member.user
             else:
+                # Support conversation - restore for all admins who deleted it
                 from django.contrib.auth import get_user_model
                 User = get_user_model()
                 admins = User.objects.filter(role='admin')
                 for admin in admins:
-                     Notification.objects.create(
+                    # Restore conversation for admin if they deleted it
+                    if admin in conversation.deleted_by.all():
+                        conversation.deleted_by.remove(admin)
+                    
+                    Notification.objects.create(
                         recipient=admin,
                         title=f"New Staff Message from {user.get_full_name()}",
                         message=content[:100] + ("..." if len(content) > 100 else "")
