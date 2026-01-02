@@ -77,11 +77,6 @@ class ConversationListView(views.APIView):
             return handle_validation_error(errors={'participants': 'At least one participant is required'})
 
         conversation, created = Conversation.objects.get_or_create(member=member, trainer=trainer)
-        
-        # If the conversation was previously deleted by this user, restore it
-        if request.user in conversation.deleted_by.all():
-            conversation.deleted_by.remove(request.user)
-        
         serializer = ConversationSerializer(conversation, context={'request': request})
         message = "Conversation created successfully" if created else "Conversation retrieved successfully"
         return handle_success(data=serializer.data, message=message, status_code=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
@@ -113,6 +108,10 @@ class ConversationDetailView(views.APIView):
                       return handle_error(message="Unauthorized", status_code=status.HTTP_403_FORBIDDEN)
             except Trainer.DoesNotExist:
                 return handle_not_found(message="Trainer profile not found")
+        
+        # If user has deleted this conversation, return empty messages
+        if user in conversation.deleted_by.all():
+            return handle_success(data=[], message="Messages retrieved successfully")
         
         conversation.chat_messages.filter(is_read=False).exclude(sender=user).update(is_read=True)
         messages = conversation.chat_messages.select_related('sender').all()
