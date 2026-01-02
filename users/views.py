@@ -13,11 +13,11 @@ from shared.responses import (
 )
 
 User = get_user_model()
-from gym.models import Notification
+from notifications.models import Notification
 
 from .serializers import UserSerializer, RegisterSerializer, AdminRegisterSerializer
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
-from gym.permissions import IsAdminOrTrainer
+from shared.permissions import IsAdminOrTrainer
 from rest_framework import generics
 
 class UserViewSet(APIView):

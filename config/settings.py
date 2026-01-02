@@ -58,6 +58,14 @@ INSTALLED_APPS = [
     # Local
     'users',
     'gym',
+    'core',
+    'attendance',
+    'programs',
+    'subscriptions',
+    'chat',
+    'notifications',
+    'fitness',
+    'scheduling',
 ]
 
 MIDDLEWARE = [
