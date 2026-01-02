@@ -19,25 +19,29 @@ class ProgressEntryListView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(tags=['Progress'], operation_summary='List progress entries')
-    def get(self, request):
-        member_id = request.query_params.get('member')
-        if member_id:
-            entries = ProgressEntry.objects.filter(member_id=member_id).select_related('member__user', 'recorded_by')
+    def get(self, request, member_id=None):
+        mid = member_id or request.query_params.get('member')
+        if mid:
+            entries = ProgressEntry.objects.filter(member_id=mid).select_related('member__user', 'recorded_by')
         else:
             entries = ProgressEntry.objects.select_related('member__user', 'recorded_by').all()
         serializer = ProgressEntrySerializer(entries, many=True)
         return handle_success(data=serializer.data, message="Progress entries retrieved successfully", status_code=status.HTTP_200_OK)
 
     @swagger_auto_schema(tags=['Progress'], operation_summary='Record progress', request_body=ProgressEntrySerializer)
-    def post(self, request):
-        serializer = ProgressEntrySerializer(data=request.data)
+    def post(self, request, member_id=None):
+        data = request.data.copy()
+        if member_id and 'member' not in data:
+            data['member'] = member_id
+            
+        serializer = ProgressEntrySerializer(data=data)
         if serializer.is_valid():
             entry = serializer.save(recorded_by=request.user)
-            if request.user.role == 'trainer':
+            if request.user.role == 'trainer' or request.user.role == 'admin':
                 Notification.objects.create(
                     recipient=entry.member.user,
                     title="Progress Updated",
-                    message=f"Your trainer {request.user.get_full_name()} has updated your progress records."
+                    message=f"Your trainer/admin {request.user.get_full_name()} has updated your progress records."
                 )
             return handle_success(data=serializer.data, message="Progress entry recorded successfully", status_code=status.HTTP_201_CREATED)
         return handle_validation_error(errors=serializer.errors)
