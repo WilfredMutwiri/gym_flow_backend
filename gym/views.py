@@ -848,7 +848,22 @@ class WorkoutSetListView(views.APIView):
 
     @swagger_auto_schema(tags=['Workouts'], operation_summary='Add exercise to workout day', request_body=WorkoutSetSerializer)
     def post(self, request):
-        serializer = WorkoutSetSerializer(data=request.data)
+        data = request.data.copy()
+        
+        # Handle exercise creation by name if provided as string
+        exercise_input = data.get('exercise')
+        if exercise_input and isinstance(exercise_input, str) and not exercise_input.isdigit():
+            # It's a name, not an ID
+            exercise, created = Exercise.objects.get_or_create(
+                name=exercise_input,
+                defaults={
+                    'muscle_group': 'General', # Default values
+                    'description': 'Custom exercise added by admin'
+                }
+            )
+            data['exercise'] = exercise.id
+            
+        serializer = WorkoutSetSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return handle_success(data=serializer.data, message="Exercise added to workout day", status_code=status.HTTP_201_CREATED)
