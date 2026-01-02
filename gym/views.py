@@ -24,7 +24,7 @@ from shared.responses import (
     handle_not_found,
 )
 from django.utils import timezone
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q
 from datetime import timedelta
 
 
@@ -666,8 +666,10 @@ class TrainerMemberAttendanceView(views.APIView):
                 except ValueError:
                     return handle_validation_error(errors={'date': 'Invalid date format. Use YYYY-MM-DD'})
 
-            # Get assigned members
-            members = Member.objects.filter(assigned_trainer=trainer, status='active')
+            # Get assigned members (Directly assigned OR have booked sessions)
+            members = Member.objects.filter(
+                Q(assigned_trainer=trainer) | Q(booked_sessions__trainer=trainer)
+            ).filter(status='active').distinct()
             
             # Get attendance for that date
             attendance_map = {}
@@ -731,14 +733,14 @@ class AttendanceMarkView(views.APIView):
                     # Check if member is assigned to trainer? 
                     # Requirement says "trainer marks... OF THEIR MEMBERS".
                     # Let's enforce it.
-                    is_assigned = Member.objects.filter(id=member_id, assigned_trainer=trainer).exists()
+                    # Check if member is assigned to trainer (Direct or via Session)
+                    is_assigned = Member.objects.filter(
+                        Q(assigned_trainer=trainer) | Q(booked_sessions__trainer=trainer),
+                        id=member_id
+                    ).exists()
+                    
                     if not is_assigned:
-                         # Relaxed check: Many existing systems allow trainers to check in anyone. 
-                         # But let's stick to "their members" as per prompt.
-                         pass # Actually, let's allow it for now or just warn. 
-                         # The prompt says "trainer marks ... of their members". 
-                         if not Member.objects.filter(id=member_id, assigned_trainer=trainer).exists():
-                             return handle_error(message="Member is not assigned to you", status_code=status.HTTP_403_FORBIDDEN)
+                         return handle_error(message="Member is not assigned to you", status_code=status.HTTP_403_FORBIDDEN)
                 except Trainer.DoesNotExist:
                     return handle_error(message="Trainer profile not found", status_code=status.HTTP_404_NOT_FOUND)
 
