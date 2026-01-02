@@ -17,6 +17,13 @@ class TrainerSerializer(serializers.ModelSerializer):
 class MemberSerializer(serializers.ModelSerializer):
     user_details = UserSerializer(source='user', read_only=True)
     active_plan = serializers.SerializerMethodField()
+    assigned_trainer_id = serializers.PrimaryKeyRelatedField(
+        queryset=Trainer.objects.all(), 
+        source='assigned_trainer', 
+        write_only=True, 
+        required=False,
+        allow_null=True
+    )
     
     class Meta:
         model = Member

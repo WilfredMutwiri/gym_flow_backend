@@ -1160,12 +1160,13 @@ class TrainerMemberListView(views.APIView):
 
     @swagger_auto_schema(tags=['Trainer'], operation_summary='List assigned members')
     def get(self, request):
-        """Get unique members who have sessions with the current trainer"""
+        """Get members assigned to trainer or who have sessions with the trainer"""
         try:
             trainer = Trainer.objects.get(user=request.user)
-            # Find members who have booked sessions with this trainer
-            # Use 'booked_sessions' related_name from Session.member
-            members = Member.objects.filter(booked_sessions__trainer=trainer).distinct()
+            # Members assigned directly OR who have booked sessions with this trainer
+            members = Member.objects.filter(
+                Q(assigned_trainer=trainer) | Q(booked_sessions__trainer=trainer)
+            ).distinct()
             serializer = MemberSerializer(members, many=True)
             return handle_success(data=serializer.data, message="Assigned members retrieved successfully")
         except Trainer.DoesNotExist:
