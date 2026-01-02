@@ -335,18 +335,37 @@ class DebugEmailSettingsView(APIView):
     def get(self, request):
         from django.conf import settings
         import socket
+        import urllib.request
         
         results = {}
         
-        # Test 1: Configured Port
+        # Test 1: DNS Resolution
+        try:
+            results['DNS_SMTP'] = str(socket.gethostbyname_ex(settings.EMAIL_HOST))
+        except Exception as e:
+            results['DNS_SMTP'] = f"Failed: {str(e)}"
+
+        try:
+            results['DNS_GOOGLE'] = str(socket.gethostbyname_ex('google.com'))
+        except Exception as e:
+            results['DNS_GOOGLE'] = f"Failed: {str(e)}"
+
+        # Test 2: HTTP Connectivity (Standard Port 443)
+        try:
+            with urllib.request.urlopen('https://www.google.com', timeout=5) as response:
+                results['HTTP_TEST'] = f"Success (Status {response.status})"
+        except Exception as e:
+            results['HTTP_TEST'] = f"Failed: {str(e)}"
+
+        # Test 3: Configured SMTP Port
         try:
             sock = socket.create_connection((settings.EMAIL_HOST, settings.EMAIL_PORT), timeout=5)
-            results['CONFIGURED_PORT_TEST'] = "Success"
+            results['SMTP_PORT_TEST'] = "Success"
             sock.close()
         except Exception as e:
-            results['CONFIGURED_PORT_TEST'] = f"Failed: {str(e)}"
+            results['SMTP_PORT_TEST'] = f"Failed: {str(e)}"
 
-        # Test 2: Force IPv4
+        # Test 4: Force IPv4 SMTP
         try:
             # Get addr info for IPv4
             addr_info = socket.getaddrinfo(settings.EMAIL_HOST, settings.EMAIL_PORT, socket.AF_INET, socket.SOCK_STREAM)
@@ -354,19 +373,19 @@ class DebugEmailSettingsView(APIView):
             sock = socket.socket(family, socktype, proto)
             sock.settimeout(5)
             sock.connect(sockaddr)
-            results['IPV4_TEST'] = f"Success (Connected to {sockaddr})"
+            results['SMTP_IPV4_TEST'] = f"Success (Connected to {sockaddr})"
             sock.close()
         except Exception as e:
-            results['IPV4_TEST'] = f"Failed: {str(e)}"
+            results['SMTP_IPV4_TEST'] = f"Failed: {str(e)}"
 
         return Response({
-            "EMAIL_BACKEND": settings.EMAIL_BACKEND,
-            "EMAIL_HOST": settings.EMAIL_HOST,
-            "EMAIL_PORT": settings.EMAIL_PORT,
-            "EMAIL_USE_TLS": settings.EMAIL_USE_TLS,
-            "EMAIL_USE_SSL": getattr(settings, 'EMAIL_USE_SSL', False),
-            "EMAIL_HOST_USER": settings.EMAIL_HOST_USER,
-            "EMAIL_HOST_PASSWORD_SET": bool(settings.EMAIL_HOST_PASSWORD),
-            "DEFAULT_FROM_EMAIL": settings.DEFAULT_FROM_EMAIL,
+            "EMAIL_CONFIG": {
+                "HOST": settings.EMAIL_HOST,
+                "PORT": settings.EMAIL_PORT,
+                "USE_TLS": settings.EMAIL_USE_TLS,
+                "USE_SSL": getattr(settings, 'EMAIL_USE_SSL', False),
+                "USER_SET": bool(settings.EMAIL_HOST_USER),
+                "PASSWORD_SET": bool(settings.EMAIL_HOST_PASSWORD),
+            },
             "TEST_RESULTS": results,
         })
