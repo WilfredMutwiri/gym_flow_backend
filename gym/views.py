@@ -1294,3 +1294,22 @@ class MemberAchievementView(views.APIView):
             return handle_success(message="Achievement awarded successfully")
         except Exception as e:
              return handle_error(message=f"Failed to award achievement: {str(e)}")
+
+class NotificationListView(views.APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(tags=['Notifications'], operation_summary='List my notifications')
+    def get(self, request):
+        notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')
+        serializer = NotificationSerializer(notifications, many=True)
+        return handle_success(data=serializer.data, message="Notifications retrieved successfully")
+
+    @swagger_auto_schema(tags=['Notifications'], operation_summary='Mark notification as read')
+    def patch(self, request, pk):
+        try:
+            notification = Notification.objects.get(pk=pk, recipient=request.user)
+            notification.read = True
+            notification.save()
+            return handle_success(message="Notification marked as read")
+        except Notification.DoesNotExist:
+            return handle_not_found(message="Notification not found")

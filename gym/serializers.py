@@ -3,7 +3,7 @@ from .models import (
     Trainer, Member, AttendanceRecord, Program, WorkoutDay, Exercise, 
     WorkoutSet, SubscriptionPlan, MemberSubscription, Payment, 
     ProgressEntry, Message, GymSetting, Conversation, ChatMessage, Session,
-    Achievement, MemberAchievement
+    Achievement, MemberAchievement, Notification
 )
 from users.serializers import UserSerializer
 
@@ -165,4 +165,9 @@ class MemberAchievementSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = MemberAchievement
+        fields = '__all__'
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
         fields = '__all__'

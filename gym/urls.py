@@ -11,7 +11,7 @@ from .views import (
     MemberProfileUpdateView,
     SessionListView, SessionDetailView,
     TrainerMemberListView, TrainerMemberAttendanceView, AttendanceMarkView, MemberAttendanceStatsView,
-    AchievementListView, MemberAchievementView
+    AchievementListView, MemberAchievementView, NotificationListView
 )
 from .chat_views import ConversationListView, ConversationDetailView, MemberListForChatView
 
@@ -68,4 +68,8 @@ urlpatterns = [
     path('achievements/', AchievementListView.as_view(), name='achievement-list'),
     path('achievements/member/', MemberAchievementView.as_view(), name='member-achievement-list'),
     path('achievements/member/<int:member_id>/', MemberAchievementView.as_view(), name='member-achievement-detail'),
+    
+    # Notifications
+    path('notifications/', NotificationListView.as_view(), name='notification-list'),
+    path('notifications/<int:pk>/read/', NotificationListView.as_view(), name='notification-read'),
 ]
