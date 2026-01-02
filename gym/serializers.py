@@ -155,7 +155,12 @@ class ConversationSerializer(serializers.ModelSerializer):
         return 0
 
 class MemberAchievementSerializer(serializers.ModelSerializer):
-    awarded_by_name = serializers.CharField(source='awarded_by.get_full_name', read_only=True)
+    awarded_by_name = serializers.SerializerMethodField()
+    
+    def get_awarded_by_name(self, obj):
+        if obj.awarded_by:
+            return obj.awarded_by.get_full_name()
+        return "System"
 
     
     class Meta:
