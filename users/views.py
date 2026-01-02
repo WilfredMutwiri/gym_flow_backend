@@ -328,3 +328,29 @@ class PasswordResetConfirmView(APIView):
         user.save()
 
         return handle_success(message="Password has been reset successfully. You can now log in with your new password.")
+
+class DebugEmailSettingsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from django.conf import settings
+        import socket
+        
+        try:
+            sock = socket.create_connection(("smtp.gmail.com", 587), timeout=5)
+            connection_status = "Success"
+            sock.close()
+        except Exception as e:
+            connection_status = f"Failed: {str(e)}"
+
+        return Response({
+            "EMAIL_BACKEND": settings.EMAIL_BACKEND,
+            "EMAIL_HOST": settings.EMAIL_HOST,
+            "EMAIL_PORT": settings.EMAIL_PORT,
+            "EMAIL_USE_TLS": settings.EMAIL_USE_TLS,
+            "EMAIL_HOST_USER": settings.EMAIL_HOST_USER,
+            "EMAIL_HOST_PASSWORD_SET": bool(settings.EMAIL_HOST_PASSWORD),
+            "EMAIL_HOST_PASSWORD_LENGTH": len(settings.EMAIL_HOST_PASSWORD) if settings.EMAIL_HOST_PASSWORD else 0,
+            "DEFAULT_FROM_EMAIL": settings.DEFAULT_FROM_EMAIL,
+            "CONNECTION_TEST": connection_status,
+        })
