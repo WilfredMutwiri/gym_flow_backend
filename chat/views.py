@@ -147,6 +147,10 @@ class ConversationDetailView(views.APIView):
             except Trainer.DoesNotExist:
                  return handle_not_found(message="Trainer profile not found")
         
+        # If user previously deleted this conversation, restore it when they send a new message
+        if user in conversation.deleted_by.all():
+            conversation.deleted_by.remove(user)
+        
         message = ChatMessage.objects.create(
             conversation=conversation,
             sender=user,
