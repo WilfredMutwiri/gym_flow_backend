@@ -13,7 +13,7 @@ from .serializers import (
 from .models import (
     Trainer, Member, AttendanceRecord, Program, WorkoutDay, Exercise, 
     WorkoutSet, SubscriptionPlan, MemberSubscription, Payment, 
-    ProgressEntry, Message, GymSetting, Session, MemberSubscription
+    ProgressEntry, Message, GymSetting, Session, MemberAchievement, Notification
 )
 from .permissions import IsAdminUser, IsTrainer, IsMember, IsAdminOrTrainer
 from rest_framework.permissions import AllowAny, IsAuthenticated
