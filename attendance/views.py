@@ -14,7 +14,7 @@ from shared.responses import (
 )
 from django.utils import timezone
 from django.db.models import Q, Count
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import TruncMonth, ExtractWeekDay
 from datetime import timedelta
 
 class AttendanceListView(views.APIView):
@@ -190,12 +190,19 @@ class MemberAttendanceStatsView(views.APIView):
             weekly_query = AttendanceRecord.objects.filter(
                 member=member,
                 date__gte=three_months_ago
-            ).extra(select={'day_of_week': 'strftime("%%w", date)'}).values('day_of_week').annotate(count=Count('id')).order_by('day_of_week')
+            ).annotate(
+                day_of_week=ExtractWeekDay('date')
+            ).values('day_of_week').annotate(
+                count=Count('id')
+            ).order_by('day_of_week')
             
-            day_names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+            # ExtractWeekDay returns 1 (Sunday) through 7 (Saturday)
+            day_names = {
+                1: 'Sun', 2: 'Mon', 3: 'Tue', 4: 'Wed', 5: 'Thu', 6: 'Fri', 7: 'Sat'
+            }
             weekly_pattern = [
                 {
-                    'day': day_names[int(item['day_of_week'])],
+                    'day': day_names.get(item['day_of_week'], 'Unknown'),
                     'visits': item['count']
                 } for item in weekly_query
             ]
