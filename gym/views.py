@@ -8,7 +8,7 @@ from .serializers import (
     WorkoutSetSerializer, SubscriptionPlanSerializer, 
     MemberSubscriptionSerializer, PaymentSerializer, 
     ProgressEntrySerializer, MessageSerializer, GymSettingSerializer,
-    SessionSerializer
+    SessionSerializer, MemberAchievementSerializer, NotificationSerializer
 )
 from .models import (
     Trainer, Member, AttendanceRecord, Program, WorkoutDay, Exercise, 
