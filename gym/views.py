@@ -1291,6 +1291,14 @@ class MemberAchievementView(views.APIView):
                 awarded_by=request.user,
                 note=note
             )
+            
+            # Create Notification
+            achievement = Achievement.objects.get(id=achievement_id)
+            Notification.objects.create(
+                recipient_id=member_id, # member user id? Careful! member_id is Member ID, we need User ID
+                title="New Achievement Unlocked!",
+                message=f"You have been awarded the '{achievement.name}' badge!",
+            )
             return handle_success(message="Achievement awarded successfully")
         except Exception as e:
              return handle_error(message=f"Failed to award achievement: {str(e)}")
