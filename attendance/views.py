@@ -166,6 +166,8 @@ class MemberAttendanceStatsView(views.APIView):
             total_visits = AttendanceRecord.objects.filter(member=member).count()
             
             today = timezone.now().date()
+            
+            # 1. Monthly Stats (Last 12 months)
             one_year_ago = today - timedelta(days=365)
             attendance_query = AttendanceRecord.objects.filter(
                 member=member,
@@ -179,13 +181,34 @@ class MemberAttendanceStatsView(views.APIView):
             monthly_stats = [
                 {
                     'month': item['month_trunc'].strftime('%b %Y'),
-                    'count': item['count']
+                    'visits': item['count']
                 } for item in attendance_query
             ]
+            
+            # 2. Weekly Pattern (visits by day of week)
+            three_months_ago = today - timedelta(days=90)
+            weekly_query = AttendanceRecord.objects.filter(
+                member=member,
+                date__gte=three_months_ago
+            ).extra(select={'day_of_week': 'strftime("%%w", date)'}).values('day_of_week').annotate(count=Count('id')).order_by('day_of_week')
+            
+            day_names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+            weekly_pattern = [
+                {
+                    'day': day_names[int(item['day_of_week'])],
+                    'visits': item['count']
+                } for item in weekly_query
+            ]
+
+            # 3. History (Last 30 visits)
+            history_records = AttendanceRecord.objects.filter(member=member).order_by('-date')[:30]
+            history_serializer = AttendanceRecordSerializer(history_records, many=True)
                 
             data = {
                 'total_visits': total_visits,
-                'monthly_stats': monthly_stats
+                'monthly_stats': monthly_stats,
+                'weekly_pattern': weekly_pattern,
+                'history': history_serializer.data
             }
             return handle_success(data=data, message="Attendance stats retrieved successfully")
         except Exception as e:
