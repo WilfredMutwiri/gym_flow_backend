@@ -13,7 +13,7 @@ from .serializers import (
 from .models import (
     Trainer, Member, AttendanceRecord, Program, WorkoutDay, Exercise, 
     WorkoutSet, SubscriptionPlan, MemberSubscription, Payment, 
-    ProgressEntry, Message, GymSetting, Session
+    ProgressEntry, Message, GymSetting, Session, MemberSubscription
 )
 from .permissions import IsAdminUser, IsTrainer, IsMember, IsAdminOrTrainer
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -639,6 +639,196 @@ class AttendanceListView(views.APIView):
             serializer.save()
             return handle_success(data=serializer.data, message="Attendance record created successfully", status_code=status.HTTP_201_CREATED)
         return handle_validation_error(errors=serializer.errors)
+
+class TrainerMemberAttendanceView(views.APIView):
+    permission_classes = [IsTrainer]
+
+    @swagger_auto_schema(
+        tags=['Attendance'], 
+        operation_summary='Get trainer members with attendance status',
+        manual_parameters=[
+            openapi.Parameter('date', openapi.IN_QUERY, description="Date to check attendance for (YYYY-MM-DD)", type=openapi.TYPE_STRING)
+        ]
+    )
+    def get(self, request):
+        try:
+            # Get trainer profile
+            try:
+                trainer = Trainer.objects.get(user=request.user)
+            except Trainer.DoesNotExist:
+                return handle_error(message="Trainer profile not found", status_code=status.HTTP_404_NOT_FOUND)
+
+            date_str = request.query_params.get('date')
+            target_date = timezone.now().date()
+            if date_str:
+                try:
+                    target_date = timezone.datetime.strptime(date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    return handle_validation_error(errors={'date': 'Invalid date format. Use YYYY-MM-DD'})
+
+            # Get assigned members
+            members = Member.objects.filter(assigned_trainer=trainer, status='active')
+            
+            # Get attendance for that date
+            attendance_map = {}
+            records = AttendanceRecord.objects.filter(date=target_date, member__in=members)
+            for record in records:
+                attendance_map[record.member_id] = record
+
+            data = []
+            for member in members:
+                record = attendance_map.get(member.id)
+                data.append({
+                    'member_id': member.id,
+                    'member_name': f"{member.user.first_name} {member.user.last_name}",
+                    'member_email': member.user.email,
+                    'profile_image': None, # Add if available
+                    'has_attended': record is not None,
+                    'attendance_id': record.id if record else None,
+                    'check_in_time': record.check_in_time if record else None,
+                    'check_out_time': record.check_out_time if record else None,
+                })
+
+            return handle_success(data=data, message="Member attendance status retrieved successfully")
+        except Exception as e:
+            return handle_error(message=f"Failed to retrieve attendance: {str(e)}")
+
+class AttendanceMarkView(views.APIView):
+    permission_classes = [IsAdminOrTrainer]
+
+    @swagger_auto_schema(
+        tags=['Attendance'],
+        operation_summary='Mark or Unmark attendance',
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'member_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                'date': openapi.Schema(type=openapi.TYPE_STRING, format='date'),
+                'status': openapi.Schema(type=openapi.TYPE_STRING, enum=['present', 'absent']),
+            },
+            required=['member_id', 'date', 'status']
+        )
+    )
+    def post(self, request):
+        try:
+            member_id = request.data.get('member_id')
+            date_str = request.data.get('date')
+            status_action = request.data.get('status') # 'present' or 'absent'
+
+            if not all([member_id, date_str, status_action]):
+                return handle_validation_error(errors={'error': 'Missing required fields'})
+
+            try:
+                target_date = timezone.datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return handle_validation_error(errors={'date': 'Invalid date format'})
+
+            # Check permissions (Trainers can only mark their members? Or anyone?)
+            # Assuming trainers can mark any member for now, or check association.
+            if request.user.role == 'trainer':
+                try:
+                    trainer = Trainer.objects.get(user=request.user)
+                    # Check if member is assigned to trainer? 
+                    # Requirement says "trainer marks... OF THEIR MEMBERS".
+                    # Let's enforce it.
+                    is_assigned = Member.objects.filter(id=member_id, assigned_trainer=trainer).exists()
+                    if not is_assigned:
+                         # Relaxed check: Many existing systems allow trainers to check in anyone. 
+                         # But let's stick to "their members" as per prompt.
+                         pass # Actually, let's allow it for now or just warn. 
+                         # The prompt says "trainer marks ... of their members". 
+                         if not Member.objects.filter(id=member_id, assigned_trainer=trainer).exists():
+                             return handle_error(message="Member is not assigned to you", status_code=status.HTTP_403_FORBIDDEN)
+                except Trainer.DoesNotExist:
+                    return handle_error(message="Trainer profile not found", status_code=status.HTTP_404_NOT_FOUND)
+
+            if status_action == 'present':
+                # Create record if not exists
+                record, created = AttendanceRecord.objects.get_or_create(
+                    member_id=member_id,
+                    date=target_date,
+                    defaults={
+                        'check_in_time': timezone.now(), # Approximate if marking for past? 
+                        # If marking for today, now is fine. If past, maybe set to 9am?
+                        # For simplicity, use current time or 12:00 PM of that day.
+                        'check_in_time': timezone.make_aware(timezone.datetime.combine(target_date, timezone.datetime.min.time())) if target_date < timezone.now().date() else timezone.now(),
+                        'method': 'manual'
+                    }
+                )
+                if not created:
+                    return handle_success(message="Attendance already marked")
+                return handle_success(message="Attendance marked as present")
+            
+            elif status_action == 'absent':
+                # Delete record if exists
+                AttendanceRecord.objects.filter(member_id=member_id, date=target_date).delete()
+                return handle_success(message="Attendance marked as absent")
+            
+            else:
+                return handle_validation_error(errors={'status': 'Invalid status. Use present or absent'})
+
+        except Exception as e:
+            return handle_error(message=f"Failed to mark attendance: {str(e)}")
+
+class MemberAttendanceStatsView(views.APIView):
+    permission_classes = [IsMember]
+
+    @swagger_auto_schema(tags=['Stats'], operation_summary='Get detailed member attendance analytics')
+    def get(self, request):
+        try:
+            member = Member.objects.get(user=request.user)
+            
+            # 1. Total Attendance
+            total_visits = AttendanceRecord.objects.filter(member=member).count()
+            
+            # 2. Monthly breakdown (last 12 months)
+            today = timezone.now().date()
+            monthly_stats = []
+            for i in range(11, -1, -1):
+                month_start = (today.replace(day=1) - timedelta(days=i*30)).replace(day=1)
+                month_end = (month_start + timedelta(days=32)).replace(day=1)
+                
+                count = AttendanceRecord.objects.filter(
+                    member=member,
+                    date__gte=month_start,
+                    date__lt=month_end
+                ).count()
+                
+                monthly_stats.append({
+                    'month': month_start.strftime('%b %Y'),
+                    'visits': count
+                })
+
+            # 3. Day of week preference
+            # 1 = Sunday, 7 = Saturday for Django query? No, .week_day is 0-6 (Mon-Sun).
+            # Easier to fetch all dates and aggregate in python if volume is low.
+            recent_records = AttendanceRecord.objects.filter(
+                member=member,
+                date__gte=today - timedelta(days=90) # Last 3 months
+            )
+            day_counts = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0} # Mon-Sun
+            for r in recent_records:
+                day_counts[r.date.weekday()] += 1
+            
+            days_labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+            weekly_pattern = [{'day': days_labels[i], 'visits': day_counts[i]} for i in range(7)]
+
+            # 4. Recent history (Detailed list)
+            history = AttendanceRecord.objects.filter(member=member).order_by('-date')[:30]
+            history_data = AttendanceRecordSerializer(history, many=True).data
+
+            data = {
+                'total_visits': total_visits,
+                'monthly_stats': monthly_stats,
+                'weekly_pattern': weekly_pattern,
+                'history': history_data
+            }
+            
+            return handle_success(data=data, message="Attendance analytics retrieved successfully")
+        except Member.DoesNotExist:
+            return handle_error(message="Member profile not found")
+        except Exception as e:
+            return handle_error(message=f"Failed to retrieve analytics: {str(e)}")
 
 class WorkoutDayListView(views.APIView):
     permission_classes = [IsAuthenticated]

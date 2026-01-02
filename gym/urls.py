@@ -10,7 +10,7 @@ from .views import (
     MessageListView, DashboardStatsView, ReportsStatsView, MemberDashboardStatsView, GymSettingView,
     MemberProfileUpdateView,
     SessionListView, SessionDetailView,
-    TrainerMemberListView
+    TrainerMemberListView, TrainerMemberAttendanceView, AttendanceMarkView, MemberAttendanceStatsView
 )
 from .chat_views import ConversationListView, ConversationDetailView, MemberListForChatView
 
@@ -21,6 +21,7 @@ urlpatterns = [
     path('stats/dashboard/', DashboardStatsView.as_view(), name='dashboard-stats'),
     path('stats/reports/', ReportsStatsView.as_view(), name='reports-stats'),
     path('stats/member-dashboard/', MemberDashboardStatsView.as_view(), name='member-dashboard-stats'),
+    path('stats/member-attendance/', MemberAttendanceStatsView.as_view(), name='member-attendance-stats'),
     # Member Profile
     path('profile/', MemberProfileUpdateView.as_view(), name='member-profile'),
     # Chat
@@ -46,11 +47,13 @@ urlpatterns = [
 
     # Trainer Members
     path('trainer/members/', TrainerMemberListView.as_view(), name='trainer-member-list'),
+    path('trainer/attendance/', TrainerMemberAttendanceView.as_view(), name='trainer-attendance-list'),
     # Member Progress
     path('members/<int:member_id>/progress/', ProgressEntryListView.as_view(), name='member-progress-list'),
     
     # Other Entities
     path('attendance/', AttendanceListView.as_view(), name='attendance-list'),
+    path('attendance/mark/', AttendanceMarkView.as_view(), name='attendance-mark'),
     path('workout-days/', WorkoutDayListView.as_view(), name='workout-day-list'),
     path('workout-sets/', WorkoutSetListView.as_view(), name='workout-set-list'),
     path('plans/', SubscriptionPlanListView.as_view(), name='plan-list'),
