@@ -1266,38 +1266,44 @@ class MemberAchievementView(views.APIView):
             type=openapi.TYPE_OBJECT,
             properties={
                 'member_id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                'achievement_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                'achievement_slug': openapi.Schema(type=openapi.TYPE_STRING),
                 'note': openapi.Schema(type=openapi.TYPE_STRING),
             },
-            required=['member_id', 'achievement_id']
+            required=['member_id', 'achievement_slug']
         )
     )
     def post(self, request):
-        # Only trainers/admins should be able to award?
-        if request.user.role == 'member':
-            return handle_error(message="Unauthorized", status_code=status.HTTP_403_FORBIDDEN)
-            
         try:
             member_id = request.data.get('member_id')
-            achievement_id = request.data.get('achievement_id')
+            achievement_slug = request.data.get('achievement_slug')
             note = request.data.get('note', '')
             
-            if MemberAchievement.objects.filter(member_id=member_id, achievement_id=achievement_id).exists():
+            if not member_id or not achievement_slug:
+                return handle_error(message="Member ID and Achievement Slug are required", status_code=400)
+
+            if MemberAchievement.objects.filter(member_id=member_id, achievement_slug=achievement_slug).exists():
                  return handle_error(message="Member already has this achievement")
             
+            # Create Award
             MemberAchievement.objects.create(
                 member_id=member_id,
-                achievement_id=achievement_id,
+                achievement_slug=achievement_slug,
                 awarded_by=request.user,
                 note=note
             )
             
             # Create Notification
-            achievement = Achievement.objects.get(id=achievement_id)
+            # Find Member User ID
+            try:
+                member_user_id = Member.objects.get(id=member_id).user_id
+            except Member.DoesNotExist:
+                 # Should not happen if FK is valid, but safe check
+                 return handle_error(message="Member not found")
+
             Notification.objects.create(
-                recipient_id=member_id, # member user id? Careful! member_id is Member ID, we need User ID
+                recipient_id=member_user_id,
                 title="New Achievement Unlocked!",
-                message=f"You have been awarded the '{achievement.name}' badge!",
+                message=f"You have been awarded a new badge! Check your progress page.",
             )
             return handle_success(message="Achievement awarded successfully")
         except Exception as e:
