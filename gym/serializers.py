@@ -133,7 +133,9 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
 class ConversationSerializer(serializers.ModelSerializer):
     member_details = MemberSerializer(source='member', read_only=True)
+    trainer_details = TrainerSerializer(source='trainer', read_only=True)
     member_name = serializers.SerializerMethodField()
+    trainer_name = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
     
@@ -142,7 +144,10 @@ class ConversationSerializer(serializers.ModelSerializer):
         fields = '__all__'
     
     def get_member_name(self, obj):
-        return obj.member.user.get_full_name()
+        return obj.member.user.get_full_name() if obj.member else None
+    
+    def get_trainer_name(self, obj):
+        return obj.trainer.user.get_full_name() if obj.trainer else None
     
     def get_last_message(self, obj):
         last_msg = obj.chat_messages.last()

@@ -21,16 +21,19 @@ class ConversationListView(views.APIView):
         user = request.user
         
         if user.role == 'admin':
+            # Admins see everything
             conversations = Conversation.objects.all()
         elif user.role == 'member':
             try:
                 member = Member.objects.get(user=user)
+                # Member sees convos where they are participant (trainer-member or admin-member)
                 conversations = Conversation.objects.filter(member=member)
             except Member.DoesNotExist:
                 return handle_error(message="Member profile not found", status_code=status.HTTP_404_NOT_FOUND)
         elif user.role == 'trainer':
              try:
                 trainer = Trainer.objects.get(user=user)
+                # Trainer sees convos where they are participant (trainer-member or admin-trainer)
                 conversations = Conversation.objects.filter(trainer=trainer)
              except Trainer.DoesNotExist:
                 return handle_error(message="Trainer profile not found", status_code=status.HTTP_404_NOT_FOUND)
@@ -49,42 +52,42 @@ class ConversationListView(views.APIView):
         member = None
         trainer = None
 
-        # Determine participants based on user role
+        # Resolve member if provided
+        if member_id:
+            try:
+                member = Member.objects.get(id=member_id)
+            except Member.DoesNotExist:
+                return handle_not_found(message="Member not found")
+        
+        # Resolve trainer if provided
+        if trainer_id:
+            try:
+                trainer = Trainer.objects.get(id=trainer_id)
+            except Trainer.DoesNotExist:
+                return handle_not_found(message="Trainer not found")
+
+        # Determine participants based on user role and input
         if request.user.role == 'member':
             try:
-                member = Member.objects.get(user=request.user)
-                if trainer_id:
-                    try:
-                        trainer = Trainer.objects.get(id=trainer_id)
-                    except Trainer.DoesNotExist:
-                        return handle_not_found(message="Trainer not found")
+                current_member = Member.objects.get(user=request.user)
+                # If member starts a chat, they must be the member participant
+                member = current_member
             except Member.DoesNotExist:
                 return handle_error(message="Member profile not found")
         
         elif request.user.role == 'trainer':
             try:
-                trainer = Trainer.objects.get(user=request.user)
-                if member_id:
-                     try:
-                         member = Member.objects.get(id=member_id)
-                     except Member.DoesNotExist:
-                         return handle_not_found(message="Member not found")
-                else:
-                    return handle_validation_error(errors={'member_id': 'This field is required'})
+                current_trainer = Trainer.objects.get(user=request.user)
+                # If trainer starts a chat, they must be the trainer participant
+                trainer = current_trainer
             except Trainer.DoesNotExist:
                  return handle_error(message="Trainer profile not found")
-                 
-        elif request.user.role == 'admin':
-            # Admin needs both
-            if not member_id: return handle_validation_error(errors={'member_id': 'Required'})
-            member = Member.objects.get(id=member_id)
-            if trainer_id: trainer = Trainer.objects.get(id=trainer_id)
-            
-        else:
-             return handle_error(message="Unauthorized", status_code=status.HTTP_403_FORBIDDEN)
 
-        # Get or create conversation
-        # Note: trainer can be None (support chat)
+        # Validation: At least one participant must be defined (Admin support chat has only one participant)
+        if not member and not trainer:
+            return handle_validation_error(errors={'participants': 'At least one participant (member or trainer) is required'})
+
+        # Get or create conversation (Note: if both are null/missing for a role, it implies admin support if role allows)
         conversation, created = Conversation.objects.get_or_create(member=member, trainer=trainer)
             
         serializer = ConversationSerializer(conversation, context={'request': request})
@@ -106,7 +109,9 @@ class ConversationDetailView(views.APIView):
         
         # Check permissions
         user = request.user
-        if user.role == 'member':
+        if user.role == 'admin':
+            pass # Admin can see all
+        elif user.role == 'member':
             try:
                 member = Member.objects.get(user=user)
                 if conversation.member != member:
@@ -142,7 +147,9 @@ class ConversationDetailView(views.APIView):
         
         # Check permissions
         user = request.user
-        if user.role == 'member':
+        if user.role == 'admin':
+            pass
+        elif user.role == 'member':
             try:
                 member = Member.objects.get(user=user)
                 if conversation.member != member:
@@ -169,13 +176,36 @@ class ConversationDetailView(views.APIView):
         if user.role == 'member':
             if conversation.trainer:
                 recipient = conversation.trainer.user
+            else:
+                # Support chat - notify all admins
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                admins = User.objects.filter(role='admin')
+                for admin in admins:
+                    Notification.objects.create(
+                        recipient=admin,
+                        title=f"New Support Message from {user.get_full_name()}",
+                        message=content[:100] + ("..." if len(content) > 100 else "")
+                    )
         elif user.role == 'trainer':
-            recipient = conversation.member.user
+            if conversation.member:
+                recipient = conversation.member.user
+            else:
+                # Support chat - notify all admins
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                admins = User.objects.filter(role='admin')
+                for admin in admins:
+                     Notification.objects.create(
+                        recipient=admin,
+                        title=f"New Staff Message from {user.get_full_name()}",
+                        message=content[:100] + ("..." if len(content) > 100 else "")
+                    )
         elif user.role == 'admin':
-            # Notify whoever is the other party
-             if conversation.trainer and conversation.trainer.user != user:
+            # If it's a trainer chat or member chat, notify the relevant party
+             if conversation.trainer:
                  recipient = conversation.trainer.user
-             elif conversation.member.user != user:
+             elif conversation.member:
                  recipient = conversation.member.user
         
         if recipient:

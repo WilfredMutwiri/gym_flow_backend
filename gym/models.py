@@ -123,7 +123,7 @@ class Message(BaseModel):
 
 class Conversation(BaseModel):
     """Represents a chat conversation between admin and a member"""
-    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='conversations')
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='conversations', null=True, blank=True)
     trainer = models.ForeignKey(Trainer, on_delete=models.CASCADE, null=True, blank=True, related_name='conversations')
     last_message_at = models.DateTimeField(auto_now=True)
     
