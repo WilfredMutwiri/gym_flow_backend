@@ -174,23 +174,15 @@ class GymSetting(BaseModel):
     def __str__(self):
         return self.gym_name
 
-class Achievement(BaseModel):
-    name = models.CharField(max_length=200)
-    description = models.TextField()
-    icon_name = models.CharField(max_length=100) # For frontend icon mapping
-    
-    def __str__(self):
-        return self.name
-
 class MemberAchievement(BaseModel):
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='achievements')
-    achievement = models.ForeignKey(Achievement, on_delete=models.CASCADE)
+    achievement_slug = models.CharField(max_length=100) # Stores the ID from frontend JSON
     awarded_at = models.DateTimeField(auto_now_add=True)
     awarded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     note = models.TextField(blank=True, null=True)
     
     def __str__(self):
-        return f"{self.member} - {self.achievement}"
+        return f"{self.member} - {self.achievement_slug}"
 
 class Notification(BaseModel):
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
