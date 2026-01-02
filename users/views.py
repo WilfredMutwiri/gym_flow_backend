@@ -19,6 +19,7 @@ from .serializers import UserSerializer, RegisterSerializer, AdminRegisterSerial
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from shared.permissions import IsAdminOrTrainer
 from rest_framework import generics
+import os
 
 class UserViewSet(APIView):
     @swagger_auto_schema(
@@ -226,3 +227,104 @@ class ChangePasswordView(views.APIView):
             return handle_success(message="Password updated successfully")
         except Exception as e:
             return handle_error(message=f"Failed to update password: {str(e)}")
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        tags=['Users'],
+        operation_summary='Request password reset',
+        request_body=serializers.Serializer,
+        responses={
+            200: 'Password reset email sent',
+            404: 'User not found',
+        }
+    )
+    def post(self, request):
+        from django.contrib.auth.tokens import default_token_generator
+        from django.core.mail import send_mail
+        from django.conf import settings
+        
+        email = request.data.get('email')
+        if not email:
+            return handle_validation_error(errors={'email': 'Email is required'})
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Don't reveal if user exists or not for security
+            return handle_success(message="If an account exists with this email, a password reset link has been sent")
+
+        # Generate token
+        token = default_token_generator.make_token(user)
+        
+        # Frontend URL for password reset
+        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+        reset_link = f"{frontend_url}/reset-password?token={token}&email={email}"
+
+        # Send email
+        subject = "Reset Your FitHub Password"
+        message = f"""
+Hello {user.get_full_name()},
+
+You requested to reset your password for your FitHub account.
+
+Click the link below to reset your password:
+{reset_link}
+
+This link will expire in 24 hours.
+
+If you didn't request this, please ignore this email.
+
+Best regards,
+The FitHub Team
+        """
+        
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+            return handle_success(message="If an account exists with this email, a password reset link has been sent")
+        except Exception as e:
+            return handle_error(message=f"Failed to send email: {str(e)}", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        tags=['Users'],
+        operation_summary='Confirm password reset',
+        request_body=serializers.Serializer,
+        responses={
+            200: 'Password reset successful',
+            400: 'Invalid or expired token',
+        }
+    )
+    def post(self, request):
+        from django.contrib.auth.tokens import default_token_generator
+        
+        email = request.data.get('email')
+        token = request.data.get('token')
+        new_password = request.data.get('new_password')
+
+        if not all([email, token, new_password]):
+            return handle_validation_error(errors={'fields': 'Email, token, and new password are required'})
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return handle_error(message="Invalid reset link", status_code=status.HTTP_400_BAD_REQUEST)
+
+        # Verify token
+        if not default_token_generator.check_token(user, token):
+            return handle_error(message="Invalid or expired reset link", status_code=status.HTTP_400_BAD_REQUEST)
+
+        # Set new password
+        user.set_password(new_password)
+        user.save()
+
+        return handle_success(message="Password has been reset successfully. You can now log in with your new password.")

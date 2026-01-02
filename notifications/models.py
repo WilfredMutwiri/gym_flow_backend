@@ -7,6 +7,7 @@ class Notification(BaseModel):
     title = models.CharField(max_length=200)
     message = models.TextField()
     read = models.BooleanField(default=False, db_index=True)
+    email_sent = models.BooleanField(default=False)
     
     class Meta:
         ordering = ['-created_at']
