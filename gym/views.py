@@ -1259,9 +1259,12 @@ class MemberAchievementView(views.APIView):
              else:
                  return handle_error(message="Member ID required for non-member users")
 
-        achievements = MemberAchievement.objects.filter(member_id=member_id)
-        serializer = MemberAchievementSerializer(achievements, many=True)
-        return handle_success(data=serializer.data, message="Member achievements retrieved successfully")
+        try:
+            achievements = MemberAchievement.objects.filter(member_id=member_id)
+            serializer = MemberAchievementSerializer(achievements, many=True)
+            return handle_success(data=serializer.data, message="Member achievements retrieved successfully")
+        except Exception as e:
+            return handle_error(message=f"Failed to fetch achievements: {str(e)}", status_code=500)
 
     @swagger_auto_schema(
         tags=['Achievements'], 
@@ -1318,9 +1321,12 @@ class NotificationListView(views.APIView):
     
     @swagger_auto_schema(tags=['Notifications'], operation_summary='List my notifications')
     def get(self, request):
-        notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')
-        serializer = NotificationSerializer(notifications, many=True)
-        return handle_success(data=serializer.data, message="Notifications retrieved successfully")
+        try:
+            notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')
+            serializer = NotificationSerializer(notifications, many=True)
+            return handle_success(data=serializer.data, message="Notifications retrieved successfully")
+        except Exception as e:
+            return handle_error(message=f"Failed to fetch notifications: {str(e)}", status_code=500)
 
     @swagger_auto_schema(tags=['Notifications'], operation_summary='Mark notification as read')
     def patch(self, request, pk):
