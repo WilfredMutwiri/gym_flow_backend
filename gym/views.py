@@ -1244,6 +1244,10 @@ class MemberAchievementView(views.APIView):
     
     @swagger_auto_schema(tags=['Achievements'], operation_summary='List member achievements')
     def get(self, request, member_id=None):
+        # Support query param if path param is not provided
+        if not member_id:
+            member_id = request.query_params.get('member_id')
+
         if not member_id:
             # If no ID provided, use logged in user's ID if member
              if request.user.role == 'member':
