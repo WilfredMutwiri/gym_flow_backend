@@ -7,6 +7,7 @@ class Conversation(BaseModel):
     member = models.ForeignKey('core.Member', on_delete=models.CASCADE, related_name='conversations', null=True, blank=True)
     trainer = models.ForeignKey('core.Trainer', on_delete=models.CASCADE, null=True, blank=True, related_name='conversations')
     last_message_at = models.DateTimeField(auto_now=True)
+    deleted_by = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='deleted_conversations')
     
     class Meta:
         ordering = ['-last_message_at']
@@ -27,6 +28,7 @@ class ChatMessage(BaseModel):
     content = models.TextField()
     is_read = models.BooleanField(default=False, db_index=True)
     sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    is_deleted = models.BooleanField(default=False)
     
     class Meta:
         ordering = ['sent_at']

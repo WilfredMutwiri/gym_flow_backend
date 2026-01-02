@@ -23,17 +23,17 @@ class ConversationListView(views.APIView):
     def get(self, request):
         user = request.user
         if user.role == 'admin':
-            conversations = Conversation.objects.filter(Q(member__isnull=True) | Q(trainer__isnull=True)).select_related('member__user', 'trainer__user').prefetch_related('chat_messages__sender')
+            conversations = Conversation.objects.filter(Q(member__isnull=True) | Q(trainer__isnull=True)).exclude(deleted_by=user).select_related('member__user', 'trainer__user').prefetch_related('chat_messages__sender')
         elif user.role == 'member':
             try:
                 member = Member.objects.get(user=user)
-                conversations = Conversation.objects.filter(member=member).select_related('member__user', 'trainer__user').prefetch_related('chat_messages__sender')
+                conversations = Conversation.objects.filter(member=member).exclude(deleted_by=user).select_related('member__user', 'trainer__user').prefetch_related('chat_messages__sender')
             except Member.DoesNotExist:
                 return handle_error(message="Member profile not found", status_code=status.HTTP_404_NOT_FOUND)
         elif user.role == 'trainer':
              try:
                 trainer = Trainer.objects.get(user=user)
-                conversations = Conversation.objects.filter(trainer=trainer).select_related('member__user', 'trainer__user').prefetch_related('chat_messages__sender')
+                conversations = Conversation.objects.filter(trainer=trainer).exclude(deleted_by=user).select_related('member__user', 'trainer__user').prefetch_related('chat_messages__sender')
              except Trainer.DoesNotExist:
                 return handle_error(message="Trainer profile not found", status_code=status.HTTP_404_NOT_FOUND)
         else:
@@ -192,6 +192,33 @@ class ConversationDetailView(views.APIView):
         conversation.save()
         serializer = ChatMessageSerializer(message)
         return handle_success(data=serializer.data, message="Message sent successfully", status_code=status.HTTP_201_CREATED)
+
+    @swagger_auto_schema(tags=['Chat'], operation_summary='Delete conversation for current user')
+    def delete(self, request, conversation_id):
+        try:
+            conversation = Conversation.objects.get(id=conversation_id)
+        except Conversation.DoesNotExist:
+            return handle_not_found(message="Conversation not found")
+        
+        conversation.deleted_by.add(request.user)
+        return handle_success(message="Conversation deleted for you")
+
+class ChatMessageDeleteView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(tags=['Chat'], operation_summary='Delete a message for everyone')
+    def delete(self, request, message_id):
+        try:
+            message = ChatMessage.objects.get(id=message_id)
+        except ChatMessage.DoesNotExist:
+            return handle_not_found(message="Message not found")
+        
+        if message.sender != request.user and request.user.role != 'admin':
+            return handle_error(message="Unauthorized to delete this message", status_code=status.HTTP_403_FORBIDDEN)
+        
+        message.is_deleted = True
+        message.save()
+        return handle_success(message="Message deleted for everyone")
 
 class MemberListForChatView(views.APIView):
     """Get list of all members for starting conversations"""

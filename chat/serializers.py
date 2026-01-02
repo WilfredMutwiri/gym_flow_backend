@@ -14,6 +14,12 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     def get_sender_name(self, obj):
         return obj.sender.get_full_name()
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.is_deleted:
+            data['content'] = "This message was deleted"
+        return data
+
 class ConversationSerializer(serializers.ModelSerializer):
     member_details = MemberSerializer(source='member', read_only=True)
     trainer_details = TrainerSerializer(source='trainer', read_only=True)
