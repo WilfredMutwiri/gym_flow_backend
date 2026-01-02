@@ -2,7 +2,8 @@ from rest_framework import serializers
 from .models import (
     Trainer, Member, AttendanceRecord, Program, WorkoutDay, Exercise, 
     WorkoutSet, SubscriptionPlan, MemberSubscription, Payment, 
-    ProgressEntry, Message, GymSetting, Conversation, ChatMessage, Session
+    ProgressEntry, Message, GymSetting, Conversation, ChatMessage, Session,
+    Achievement, MemberAchievement
 )
 from users.serializers import UserSerializer
 
@@ -152,3 +153,16 @@ class ConversationSerializer(serializers.ModelSerializer):
         if request and request.user:
             return obj.chat_messages.filter(is_read=False).exclude(sender=request.user).count()
         return 0
+
+class AchievementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Achievement
+        fields = '__all__'
+
+class MemberAchievementSerializer(serializers.ModelSerializer):
+    achievement_details = AchievementSerializer(source='achievement', read_only=True)
+    awarded_by_name = serializers.CharField(source='awarded_by.get_full_name', read_only=True)
+    
+    class Meta:
+        model = MemberAchievement
+        fields = '__all__'

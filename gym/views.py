@@ -543,19 +543,57 @@ class MemberDashboardStatsView(views.APIView):
                 })
             
             # 3. Calculate attendance streak
-            attendance_records = AttendanceRecord.objects.filter(
+            # Get unique dates effectively
+            attendance_dates = AttendanceRecord.objects.filter(
                 member=member
-            ).order_by('-date')
+            ).order_by('-date').values_list('date', flat=True).distinct()
             
             attendance_streak = 0
-            if attendance_records.exists():
-                current_date = today
-                for record in attendance_records:
-                    if record.date == current_date or record.date == current_date - timedelta(days=1):
-                        attendance_streak += 1
-                        current_date = record.date - timedelta(days=1)
-                    else:
-                        break
+            current_check_date = today
+            
+            for att_date in attendance_dates:
+                if att_date == current_check_date:
+                    attendance_streak += 1
+                    current_check_date -= timedelta(days=1)
+                elif att_date == current_check_date - timedelta(days=1):
+                     # This case handles if they missed today but attended yesterday, 
+                     # but typically streak includes today if present. 
+                     # If the loop starts with yesterday (today missing), we shouldn't increment yet?
+                     # Actually, if today is missing, streak is active if yesterday is present.
+                     # Let's adjust logic:
+                     # If the first date found is NOT today, but IS yesterday, streak starts from yesterday.
+                     # But we need to handle the initial check.
+                     pass
+            
+            # Re-implementing simplified logic:
+            attendance_streak = 0
+            if attendance_dates:
+                # Convert to list to iterate safely
+                dates_list = list(attendance_dates)
+                
+                # Check if latest is today or yesterday
+                latest = dates_list[0]
+                if latest == today:
+                    attendance_streak = 1
+                    expected_prev = today - timedelta(days=1)
+                    idx = 1
+                elif latest == today - timedelta(days=1):
+                    attendance_streak = 1
+                    expected_prev = today - timedelta(days=2)
+                    idx = 1
+                else:
+                    # Streak broken or not started recently
+                    attendance_streak = 0
+                    idx = -1 # Skip loop
+                
+                if idx != -1:
+                    while idx < len(dates_list):
+                        if dates_list[idx] == expected_prev:
+                            attendance_streak += 1
+                            expected_prev -= timedelta(days=1)
+                            idx += 1
+                        else:
+                            break
             
             # 4. Get recent progress entries
             progress_entries = ProgressEntry.objects.filter(
@@ -1191,3 +1229,68 @@ class ProgressEntryListView(views.APIView):
             return handle_validation_error(errors=serializer.errors)
         except Member.DoesNotExist:
             return handle_not_found(message="Member not found")
+
+class AchievementListView(views.APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(tags=['Achievements'], operation_summary='List all achievements')
+    def get(self, request):
+        achievements = Achievement.objects.all()
+        serializer = AchievementSerializer(achievements, many=True)
+        return handle_success(data=serializer.data, message="Achievements retrieved successfully")
+
+class MemberAchievementView(views.APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(tags=['Achievements'], operation_summary='List member achievements')
+    def get(self, request, member_id=None):
+        if not member_id:
+            # If no ID provided, use logged in user's ID if member
+             if request.user.role == 'member':
+                 try:
+                    member = Member.objects.get(user=request.user)
+                    member_id = member.id
+                 except Member.DoesNotExist:
+                     return handle_error(message="Member profile not found")
+             else:
+                 return handle_error(message="Member ID required for non-member users")
+
+        achievements = MemberAchievement.objects.filter(member_id=member_id)
+        serializer = MemberAchievementSerializer(achievements, many=True)
+        return handle_success(data=serializer.data, message="Member achievements retrieved successfully")
+
+    @swagger_auto_schema(
+        tags=['Achievements'], 
+        operation_summary='Award achievement to member',
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'member_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                'achievement_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                'note': openapi.Schema(type=openapi.TYPE_STRING),
+            },
+            required=['member_id', 'achievement_id']
+        )
+    )
+    def post(self, request):
+        # Only trainers/admins should be able to award?
+        if request.user.role == 'member':
+            return handle_error(message="Unauthorized", status_code=status.HTTP_403_FORBIDDEN)
+            
+        try:
+            member_id = request.data.get('member_id')
+            achievement_id = request.data.get('achievement_id')
+            note = request.data.get('note', '')
+            
+            if MemberAchievement.objects.filter(member_id=member_id, achievement_id=achievement_id).exists():
+                 return handle_error(message="Member already has this achievement")
+            
+            MemberAchievement.objects.create(
+                member_id=member_id,
+                achievement_id=achievement_id,
+                awarded_by=request.user,
+                note=note
+            )
+            return handle_success(message="Achievement awarded successfully")
+        except Exception as e:
+             return handle_error(message=f"Failed to award achievement: {str(e)}")

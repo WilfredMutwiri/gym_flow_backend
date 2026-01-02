@@ -10,7 +10,8 @@ from .views import (
     MessageListView, DashboardStatsView, ReportsStatsView, MemberDashboardStatsView, GymSettingView,
     MemberProfileUpdateView,
     SessionListView, SessionDetailView,
-    TrainerMemberListView, TrainerMemberAttendanceView, AttendanceMarkView, MemberAttendanceStatsView
+    TrainerMemberListView, TrainerMemberAttendanceView, AttendanceMarkView, MemberAttendanceStatsView,
+    AchievementListView, MemberAchievementView
 )
 from .chat_views import ConversationListView, ConversationDetailView, MemberListForChatView
 
@@ -62,4 +63,9 @@ urlpatterns = [
     path('progress/', ProgressEntryListView.as_view(), name='progress-list'),
     path('exercises/', ExerciseListView.as_view(), name='exercise-list'),
     path('messages/', MessageListView.as_view(), name='message-list'),
+    
+    # Achievements
+    path('achievements/', AchievementListView.as_view(), name='achievement-list'),
+    path('achievements/member/', MemberAchievementView.as_view(), name='member-achievement-list'),
+    path('achievements/member/<int:member_id>/', MemberAchievementView.as_view(), name='member-achievement-detail'),
 ]
