@@ -191,6 +191,10 @@ class ConversationDetailView(views.APIView):
                  recipient = conversation.member.user
         
         if recipient:
+            # Also restore conversation for recipient if they had deleted it
+            if recipient in conversation.deleted_by.all():
+                conversation.deleted_by.remove(recipient)
+            
             Notification.objects.create(
                 recipient=recipient,
                 title=f"New Message from {user.get_full_name()}",
