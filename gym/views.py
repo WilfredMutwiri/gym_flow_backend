@@ -1359,3 +1359,12 @@ class NotificationListView(views.APIView):
             return handle_success(message="Notification marked as read")
         except Notification.DoesNotExist:
             return handle_not_found(message="Notification not found")
+
+    @swagger_auto_schema(tags=['Notifications'], operation_summary='Delete notification')
+    def delete(self, request, pk):
+        try:
+            notification = Notification.objects.get(pk=pk, recipient=request.user)
+            notification.delete()
+            return handle_success(message="Notification deleted successfully")
+        except Notification.DoesNotExist:
+            return handle_not_found(message="Notification not found")
